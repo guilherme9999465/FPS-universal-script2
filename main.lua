@@ -4,6 +4,9 @@ local WindUI = loadstring(game:HttpGet(
 
 assert(WindUI, "WindUI não carregou")
 
+--==================================================
+-- SERVICES
+--==================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,6 +14,10 @@ local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+--==================================================
+-- CONFIG
+--==================================================
 
 local Config = {
     ESPEnabled = true,
@@ -29,11 +36,14 @@ local Config = {
 local ESPObjects = {}
 local HoldingAim = false
 
+--==================================================
+-- WINDOW
+--==================================================
 
 local Window = WindUI:CreateWindow({
     Title = "GuiloHUB",
     Icon = "crosshair",
-    Author = "Combat Testing Suite",
+    Author = "Guilh3rm3Scr1pter",
     Folder = "GuiloHUB",
     Size = UDim2.fromOffset(650, 500),
     Transparent = false,
@@ -49,12 +59,19 @@ local Window = WindUI:CreateWindow({
     },
 })
 
+--==================================================
+-- TABS
+--==================================================
+
 local ESPTab = Window:CreateTab("ESP", "eye")
 local AimTab = Window:CreateTab("Aimbot", "crosshair")
 local SettingsTab = Window:CreateTab("Settings", "settings")
 
 Window:SelectTab(1)
 
+--==================================================
+-- ESP FUNCTIONS
+--==================================================
 
 local function IsAlive(character)
     if not character then
@@ -124,6 +141,7 @@ local function CreateESP(player)
         return
     end
 
+    -- Highlight
 
     local Highlight = Instance.new("Highlight")
 
@@ -143,6 +161,8 @@ local function CreateESP(player)
     Highlight.OutlineTransparency = 0
 
     Highlight.Parent = character
+
+    -- Billboard
 
     local Billboard = Instance.new("BillboardGui")
 
@@ -228,6 +248,8 @@ local function UpdateESP(player)
 
     data.Text.Text = nameText
 
+    -- Team color update
+
     if player.Team and player.Team.TeamColor then
         data.Highlight.FillColor = player.Team.TeamColor.Color
         data.Highlight.OutlineColor = player.Team.TeamColor.Color
@@ -271,6 +293,9 @@ Players.PlayerRemoving:Connect(function(player)
     RemoveESP(player)
 end)
 
+--==================================================
+-- AIMBOT
+--==================================================
 
 local function GetAimPart(character)
 
@@ -359,6 +384,9 @@ local function AimAt(player)
     )
 end
 
+--==================================================
+-- INPUT
+--==================================================
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
@@ -378,6 +406,9 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
+--==================================================
+-- RENDER LOOP
+--==================================================
 
 RunService.RenderStepped:Connect(function()
 
@@ -395,6 +426,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+--==================================================
+-- ESP TAB
+--==================================================
 
 local ESPSection = ESPTab:CreateSection("ESP Settings")
 
@@ -433,6 +467,10 @@ ESPTab:CreateToggle({
         Config.ESPDistance = value
     end,
 })
+
+--==================================================
+-- AIM TAB
+--==================================================
 
 local AimSection = AimTab:CreateSection("Aimbot Settings")
 
@@ -508,6 +546,10 @@ AimTab:CreateSlider({
     end,
 })
 
+--==================================================
+-- SETTINGS TAB
+--==================================================
+
 SettingsTab:CreateSection("Information")
 
 SettingsTab:CreateParagraph({
@@ -524,12 +566,17 @@ SettingsTab:CreateButton({
         for player in pairs(ESPObjects) do
             RemoveESP(player)
         end
-            
+
+        -- WindUI's window/library cleanup if available
         pcall(function()
             Window:Destroy()
         end)
     end,
 })
+
+--==================================================
+-- DONE
+--==================================================
 
 WindUI:Notify({
     Title = "GuiloHUB",
