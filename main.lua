@@ -1,104 +1,91 @@
-local Rayfield = loadstring(
-    game:HttpGet("https://sirius.menu/gen2")
-)()
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+assert(WindUI, "WindUI não carregou")
+
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local ESPEnabled = true
-local TeamCheck = true
+local Config = {
+    ESPEnabled = true,
+    ESPTeamCheck = true,
+    ESPNames = true,
+    ESPDistance = true,
 
-local AimbotEnabled = false
-local AimPart = "Head"
-local AimSmoothness = 0.15
-local AimFOV = 150
-local MaxDistance = 1000
-local AimKey = Enum.UserInputType.MouseButton2
+    AimbotEnabled = false,
+    AimbotTeamCheck = true,
+    AimPart = "Head",
+    AimFOV = 150,
+    AimSmoothness = 0.15,
+    MaxDistance = 1000,
+}
 
+local ESPObjects = {}
 local HoldingAim = false
 
-local ESPFolder = Instance.new("Folder")
-ESPFolder.Name = "TestESP"
-ESPFolder.Parent = workspace
 
+local Window = WindUI:CreateWindow({
+    Title = "GuiloHUB",
+    Icon = "crosshair",
+    Author = "Combat Testing Suite",
+    Folder = "GuiloHUB",
+    Size = UDim2.fromOffset(650, 500),
+    Transparent = false,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 180,
 
-local Window = Rayfield:CreateWindow({
-    name = "Test Combat Suite",
-    subtitle = "ESP + Aimbot",
-    sidebarLayout = true,
+    OpenButton = {
+        Title = "GuiloHUB",
+        Icon = "crosshair",
+        Draggable = true,
+        OnlyIcon = false,
+    },
 })
 
-local MainTab = Window:CreateTab({
-    name = "Main",
-})
+local ESPTab = Window:CreateTab("ESP", "eye")
+local AimTab = Window:CreateTab("Aimbot", "crosshair")
+local SettingsTab = Window:CreateTab("Settings", "settings")
 
-local ESPTab = Window:CreateTab({
-    name = "ESP",
-})
+Window:SelectTab(1)
 
-local AimTab = Window:CreateTab({
-    name = "Aimbot",
-})
 
-local function IsAlive(player)
-
-    if not player.Character then
+local function IsAlive(character)
+    if not character then
         return false
     end
 
-    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
 
-    if not humanoid then
-        return false
-    end
-
-    return humanoid.Health > 0
+    return humanoid and humanoid.Health > 0
 end
 
-
-local function IsValidTarget(player)
-
+local function IsValidTarget(player, teamCheck)
     if player == LocalPlayer then
         return false
     end
 
-    if not IsAlive(player) then
-        return false
-    end
-
-    if TeamCheck then
-
-        if LocalPlayer.Team ~= nil and player.Team ~= nil then
-
-            if LocalPlayer.Team == player.Team then
-                return false
-            end
-
+    if teamCheck and LocalPlayer.Team ~= nil then
+        if player.Team == LocalPlayer.Team then
+            return false
         end
-
     end
 
     local character = player.Character
-    local root = character and character:FindFirstChild("HumanoidRootPart")
+
+    if not IsAlive(character) then
+        return false
+    end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
 
     if not root then
-        return false
-    end
-
-    local myCharacter = LocalPlayer.Character
-    local myRoot = myCharacter and myCharacter:FindFirstChild("HumanoidRootPart")
-
-    if not myRoot then
-        return false
-    end
-
-    local distance = (root.Position - myRoot.Position).Magnitude
-
-    if distance > MaxDistance then
         return false
     end
 
@@ -106,15 +93,22 @@ local function IsValidTarget(player)
 end
 
 local function RemoveESP(player)
+    local data = ESPObjects[player]
 
-    local object = ESPFolder:FindFirstChild(player.Name)
-
-    if object then
-        object:Destroy()
+    if not data then
+        return
     end
 
-end
+    if data.Highlight then
+        data.Highlight:Destroy()
+    end
 
+    if data.Billboard then
+        data.Billboard:Destroy()
+    end
+
+    ESPObjects[player] = nil
+end
 
 local function CreateESP(player)
 
@@ -122,160 +116,7 @@ local function CreateESP(player)
         return
     end
 
-    if not player.Character then
-        return
-    end
-
     RemoveESP(player)
-
-    local container = Instance.new("Folder")
-    container.Name = player.Name
-    container.Parent = ESPFolder
-
-    local highlight = Instance.new("Highlight")
-
-    highlight.Name = "Highlight"
-    highlight.Adornee = player.Character
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-
-    highlight.FillColor = Color3.fromRGB(255, 70, 70)
-    highlight.FillTransparency = 0.65
-
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.OutlineTransparency = 0
-
-    highlight.Parent = container
-
-    local head = player.Character:FindFirstChild("Head")
-
-    if head then
-
-        local billboard = Instance.new("BillboardGui")
-
-        billboard.Name = "Info"
-        billboard.Adornee = head
-
-        billboard.Size = UDim2.new(0, 220, 0, 45)
-        billboard.StudsOffset = Vector3.new(0, 3, 0)
-
-        billboard.AlwaysOnTop = true
-        billboard.Parent = container
-
-        local label = Instance.new("TextLabel")
-
-        label.Name = "Label"
-        label.Size = UDim2.new(1, 0, 1, 0)
-
-        label.BackgroundTransparency = 1
-
-        label.Text = player.Name
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-        label.TextStrokeTransparency = 0
-        label.TextSize = 14
-
-        label.Font = Enum.Font.GothamBold
-
-        label.Parent = billboard
-
-    end
-
-end
-
-
-local function UpdateESP(player)
-
-    if not ESPEnabled then
-        RemoveESP(player)
-        return
-    end
-
-    if not IsValidTarget(player) then
-        RemoveESP(player)
-        return
-    end
-
-    if not ESPFolder:FindFirstChild(player.Name) then
-        CreateESP(player)
-    end
-
-end
-
-local function GetAimPart(character)
-
-    if not character then
-        return nil
-    end
-
-    local part = character:FindFirstChild(AimPart)
-
-    if part then
-        return part
-    end
-
-    -- Fallback
-    return character:FindFirstChild("HumanoidRootPart")
-end
-
-
-local function GetClosestTarget()
-
-    local closestPlayer = nil
-    local closestDistance = AimFOV
-
-    local viewportSize = Camera.ViewportSize
-
-    local screenCenter = Vector2.new(
-        viewportSize.X / 2,
-        viewportSize.Y / 2
-    )
-
-    for _, player in ipairs(Players:GetPlayers()) do
-
-        if IsValidTarget(player) then
-
-            local character = player.Character
-            local aimPart = GetAimPart(character)
-
-            if aimPart then
-
-                local screenPosition, visible =
-                    Camera:WorldToViewportPoint(aimPart.Position)
-
-                if visible and screenPosition.Z > 0 then
-
-                    local screenPoint = Vector2.new(
-                        screenPosition.X,
-                        screenPosition.Y
-                    )
-
-                    local distanceFromCenter =
-                        (screenPoint - screenCenter).Magnitude
-
-                    if distanceFromCenter < closestDistance then
-
-                        closestDistance = distanceFromCenter
-                        closestPlayer = player
-
-                    end
-
-                end
-
-            end
-
-        end
-
-    end
-
-    return closestPlayer
-end
-
-
-local function AimAt(player)
-
-    if not player then
-        return
-    end
 
     local character = player.Character
 
@@ -283,69 +124,115 @@ local function AimAt(player)
         return
     end
 
-    local aimPart = GetAimPart(character)
 
-    if not aimPart then
-        return
+    local Highlight = Instance.new("Highlight")
+
+    Highlight.Name = "GuiloESP"
+    Highlight.Adornee = character
+    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+    if player.Team and player.Team.TeamColor then
+        Highlight.FillColor = player.Team.TeamColor.Color
+        Highlight.OutlineColor = player.Team.TeamColor.Color
+    else
+        Highlight.FillColor = Color3.fromRGB(255, 80, 80)
+        Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
     end
 
-    local cameraPosition = Camera.CFrame.Position
+    Highlight.FillTransparency = 0.45
+    Highlight.OutlineTransparency = 0
 
-    local targetCFrame =
-        CFrame.new(cameraPosition, aimPart.Position)
+    Highlight.Parent = character
 
-    Camera.CFrame = Camera.CFrame:Lerp(
-        targetCFrame,
-        AimSmoothness
-    )
+    local Billboard = Instance.new("BillboardGui")
 
+    Billboard.Name = "GuiloESPInfo"
+    Billboard.Adornee = character:FindFirstChild("Head")
+        or character:FindFirstChild("HumanoidRootPart")
+
+    Billboard.Size = UDim2.fromOffset(200, 45)
+    Billboard.StudsOffset = Vector3.new(0, 3, 0)
+    Billboard.AlwaysOnTop = true
+
+    local Text = Instance.new("TextLabel")
+
+    Text.Size = UDim2.fromScale(1, 1)
+    Text.BackgroundTransparency = 1
+    Text.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Text.TextStrokeTransparency = 0
+    Text.TextSize = 13
+    Text.Font = Enum.Font.GothamBold
+
+    Text.Parent = Billboard
+    Billboard.Parent = character
+
+    ESPObjects[player] = {
+        Highlight = Highlight,
+        Billboard = Billboard,
+        Text = Text,
+    }
 end
 
+local function UpdateESP(player)
 
-UserInputService.InputBegan:Connect(function(input, processed)
+    local data = ESPObjects[player]
 
-    if processed then
+    if not data then
         return
     end
 
-    if input.UserInputType == AimKey then
-        HoldingAim = true
+    local character = player.Character
+
+    if not character then
+        RemoveESP(player)
+        return
     end
 
-end)
+    local root = character:FindFirstChild("HumanoidRootPart")
 
-
-UserInputService.InputEnded:Connect(function(input)
-
-    if input.UserInputType == AimKey then
-        HoldingAim = false
+    if not root then
+        return
     end
 
-end)
+    local valid = IsValidTarget(player, Config.ESPTeamCheck)
 
-RunService.RenderStepped:Connect(function()
+    if not Config.ESPEnabled or not valid then
+        data.Highlight.Enabled = false
+        data.Billboard.Enabled = false
+        return
+    end
 
-    -- Atualiza ESP
-    for _, player in ipairs(Players:GetPlayers()) do
+    data.Highlight.Enabled = true
+    data.Billboard.Enabled = true
 
-        if player ~= LocalPlayer then
-            UpdateESP(player)
+    local distance = (
+        Camera.CFrame.Position - root.Position
+    ).Magnitude
+
+    local nameText = ""
+
+    if Config.ESPNames then
+        nameText = player.DisplayName
+    else
+        nameText = ""
+    end
+
+    if Config.ESPDistance then
+
+        if nameText ~= "" then
+            nameText = nameText .. "\n"
         end
 
+        nameText = nameText .. math.floor(distance) .. " studs"
     end
 
-    -- Aimbot
-    if AimbotEnabled and HoldingAim then
+    data.Text.Text = nameText
 
-        local target = GetClosestTarget()
-
-        if target then
-            AimAt(target)
-        end
-
+    if player.Team and player.Team.TeamColor then
+        data.Highlight.FillColor = player.Team.TeamColor.Color
+        data.Highlight.OutlineColor = player.Team.TeamColor.Color
     end
-
-end)
+end
 
 local function SetupPlayer(player)
 
@@ -354,176 +241,298 @@ local function SetupPlayer(player)
     end
 
     player.CharacterAdded:Connect(function()
+        task.wait(0.25)
 
-        task.wait(0.3)
-
-        UpdateESP(player)
-
+        if player.Character then
+            CreateESP(player)
+        end
     end)
 
     player:GetPropertyChangedSignal("Team"):Connect(function()
+        task.wait()
 
-        UpdateESP(player)
-
+        if player.Character then
+            CreateESP(player)
+        end
     end)
 
     if player.Character then
-        UpdateESP(player)
+        CreateESP(player)
     end
-
 end
-
 
 for _, player in ipairs(Players:GetPlayers()) do
     SetupPlayer(player)
 end
 
-
-Players.PlayerAdded:Connect(function(player)
-
-    SetupPlayer(player)
-
-end)
-
+Players.PlayerAdded:Connect(SetupPlayer)
 
 Players.PlayerRemoving:Connect(function(player)
-
     RemoveESP(player)
-
 end)
 
-MainTab:CreateToggle({
-    name = "Team Check",
-    callback = function(value)
 
-        TeamCheck = value
+local function GetAimPart(character)
 
-        for _, player in ipairs(Players:GetPlayers()) do
+    local part = character:FindFirstChild(Config.AimPart)
 
-            if player ~= LocalPlayer then
-                UpdateESP(player)
+    if part then
+        return part
+    end
+
+    return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetClosestTarget()
+
+    local closestPlayer = nil
+    local closestDistance = math.huge
+
+    local center = Camera.ViewportSize / 2
+
+    for _, player in ipairs(Players:GetPlayers()) do
+
+        if IsValidTarget(player, Config.AimbotTeamCheck) then
+
+            local character = player.Character
+            local aimPart = GetAimPart(character)
+
+            if aimPart then
+
+                local distance3D = (
+                    Camera.CFrame.Position - aimPart.Position
+                ).Magnitude
+
+                if distance3D <= Config.MaxDistance then
+
+                    local screenPosition, visible = Camera:WorldToViewportPoint(
+                        aimPart.Position
+                    )
+
+                    if visible then
+
+                        local screenDistance = (
+                            Vector2.new(screenPosition.X, screenPosition.Y) - center
+                        ).Magnitude
+
+                        if screenDistance <= Config.AimFOV
+                            and screenDistance < closestDistance then
+
+                            closestDistance = screenDistance
+                            closestPlayer = player
+                        end
+                    end
+                end
             end
-
         end
+    end
 
-    end,
-})
+    return closestPlayer
+end
 
+local function AimAt(player)
+
+    if not player or not player.Character then
+        return
+    end
+
+    local aimPart = GetAimPart(player.Character)
+
+    if not aimPart then
+        return
+    end
+
+    local targetPosition = aimPart.Position
+
+    local direction = (
+        targetPosition - Camera.CFrame.Position
+    ).Unit
+
+    local targetCFrame = CFrame.lookAt(
+        Camera.CFrame.Position,
+        Camera.CFrame.Position + direction
+    )
+
+    Camera.CFrame = Camera.CFrame:Lerp(
+        targetCFrame,
+        Config.AimSmoothness
+    )
+end
+
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+
+    if gameProcessed then
+        return
+    end
+
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        HoldingAim = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        HoldingAim = false
+    end
+end)
+
+
+RunService.RenderStepped:Connect(function()
+
+    for player in pairs(ESPObjects) do
+        UpdateESP(player)
+    end
+
+    if Config.AimbotEnabled and HoldingAim then
+
+        local target = GetClosestTarget()
+
+        if target then
+            AimAt(target)
+        end
+    end
+end)
+
+
+local ESPSection = ESPTab:CreateSection("ESP Settings")
 
 ESPTab:CreateToggle({
-    name = "ESP",
-    callback = function(value)
+    Name = "Enable ESP",
+    CurrentValue = Config.ESPEnabled,
 
-        ESPEnabled = value
-
-        for _, player in ipairs(Players:GetPlayers()) do
-
-            if player ~= LocalPlayer then
-                UpdateESP(player)
-            end
-
-        end
-
+    Callback = function(value)
+        Config.ESPEnabled = value
     end,
 })
 
+ESPTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = Config.ESPTeamCheck,
+
+    Callback = function(value)
+        Config.ESPTeamCheck = value
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Player Names",
+    CurrentValue = Config.ESPNames,
+
+    Callback = function(value)
+        Config.ESPNames = value
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Distance",
+    CurrentValue = Config.ESPDistance,
+
+    Callback = function(value)
+        Config.ESPDistance = value
+    end,
+})
+
+local AimSection = AimTab:CreateSection("Aimbot Settings")
 
 AimTab:CreateToggle({
-    name = "Aimbot",
-    callback = function(value)
+    Name = "Enable Aimbot",
+    CurrentValue = Config.AimbotEnabled,
 
-        AimbotEnabled = value
-
+    Callback = function(value)
+        Config.AimbotEnabled = value
     end,
 })
 
+AimTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = Config.AimbotTeamCheck,
+
+    Callback = function(value)
+        Config.AimbotTeamCheck = value
+    end,
+})
 
 AimTab:CreateDropdown({
-    name = "Aim Part",
-
-    options = {
+    Name = "Aim Part",
+    Options = {
         "Head",
         "UpperTorso",
         "LowerTorso",
-        "HumanoidRootPart"
+        "HumanoidRootPart",
     },
 
-    default = "Head",
+    CurrentOption = {Config.AimPart},
 
-    callback = function(value)
+    Callback = function(option)
 
-        if type(value) == "table" then
-            AimPart = value[1]
+        if type(option) == "table" then
+            Config.AimPart = option[1]
         else
-            AimPart = value
+            Config.AimPart = option
         end
-
     end,
 })
-
 
 AimTab:CreateSlider({
-    name = "Aim FOV",
+    Name = "FOV",
+    Range = {50, 500},
+    Increment = 5,
+    CurrentValue = Config.AimFOV,
 
-    range = {
-        25,
-        500
-    },
-
-    increment = 5,
-
-    default = 150,
-
-    callback = function(value)
-
-        AimFOV = value
-
+    Callback = function(value)
+        Config.AimFOV = value
     end,
 })
-
 
 AimTab:CreateSlider({
-    name = "Smoothness",
+    Name = "Smoothness",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    CurrentValue = Config.AimSmoothness,
 
-    range = {
-        0.01,
-        1
-    },
-
-    increment = 0.01,
-
-    default = 0.15,
-
-    callback = function(value)
-
-        AimSmoothness = value
-
+    Callback = function(value)
+        Config.AimSmoothness = value
     end,
 })
-
 
 AimTab:CreateSlider({
-    name = "Max Distance",
+    Name = "Max Distance",
+    Range = {100, 3000},
+    Increment = 50,
+    CurrentValue = Config.MaxDistance,
 
-    range = {
-        100,
-        3000
-    },
-
-    increment = 50,
-
-    default = 1000,
-
-    callback = function(value)
-
-        MaxDistance = value
-
+    Callback = function(value)
+        Config.MaxDistance = value
     end,
 })
 
+SettingsTab:CreateSection("Information")
 
-Rayfield:Notify({
-    title = "GuiloHUB",
-    content = "ESP + Aimbot carregados.",
-    duration = 5,
+SettingsTab:CreateParagraph({
+    Title = "GuiloHUB",
+    Content = "Combat testing interface using WindUI.\n\nESP and target-selection tools are configured through the tabs.",
+})
+
+SettingsTab:CreateButton({
+    Name = "Destroy UI",
+
+    Callback = function()
+        ScreenGui = nil
+
+        for player in pairs(ESPObjects) do
+            RemoveESP(player)
+        end
+            
+        pcall(function()
+            Window:Destroy()
+        end)
+    end,
+})
+
+WindUI:Notify({
+    Title = "GuiloHUB",
+    Content = "Interface carregada com sucesso.",
+    Duration = 5,
 })
