@@ -38,17 +38,12 @@ local Config = {
     WallCheck = true,
 
     AimPart = "Head",
-
-    -- 0.8 = bem mais rapido que 0.15
     AimSmoothness = 0.80,
-
     AimFOV = 150,
     MaxDistance = 1000,
 
-    -- Tecla inicial
+    ActivationKeyEnabled = true,
     ActivationKey = Enum.KeyCode.Q,
-
-    -- "Hold" ou "Toggle"
     ActivationMode = "Hold",
 }
 
