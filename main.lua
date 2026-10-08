@@ -31,42 +31,34 @@ local Camera = workspace.CurrentCamera
 
 local Config = {
 
-    --==============================
     -- ESP
-    --==============================
-
     ESPEnabled = true,
     ESPTeamCheck = true,
     ESPNames = true,
     ESPDistance = true,
 
-    --==============================
     -- AIMBOT
-    --==============================
-
     AimbotEnabled = false,
-
     AimbotTeamCheck = true,
     WallCheck = true,
 
     AimPart = "Head",
 
-    -- Quanto maior, mais rapido.
-    -- 1.00 = instantaneo
+    -- Maior = mais rapido
     AimSmoothness = 0.85,
 
     AimFOV = 150,
     MaxDistance = 1000,
 
-    --==============================
     -- ACTIVATION
-    --==============================
-
     ActivationKeyEnabled = true,
+
+    -- Keyboard / M1 / M2
+    ActivationInputType = "Keyboard",
 
     ActivationKey = Enum.KeyCode.Q,
 
-    -- Hold ou Toggle
+    -- Hold / Toggle
     ActivationMode = "Hold",
 }
 
@@ -189,12 +181,10 @@ local function IsValidTarget(
         return false
     end
 
-    local root =
-        character:FindFirstChild(
-            "HumanoidRootPart"
-        )
+    if not character:FindFirstChild(
+        "HumanoidRootPart"
+    ) then
 
-    if not root then
         return false
     end
 
@@ -244,9 +234,7 @@ local function CreateESP(player)
         return
     end
 
-    --==============================
     -- HIGHLIGHT
-    --==============================
 
     local Highlight =
         Instance.new("Highlight")
@@ -293,9 +281,7 @@ local function CreateESP(player)
     Highlight.Parent =
         character
 
-    --==============================
     -- BILLBOARD
-    --==============================
 
     local Billboard =
         Instance.new("BillboardGui")
@@ -328,9 +314,7 @@ local function CreateESP(player)
     Billboard.Parent =
         character
 
-    --==============================
     -- TEXT
-    --==============================
 
     local Text =
         Instance.new("TextLabel")
@@ -362,10 +346,6 @@ local function CreateESP(player)
 
     Text.Parent =
         Billboard
-
-    --==============================
-    -- STORE
-    --==============================
 
     ESPObjects[player] = {
 
@@ -562,7 +542,6 @@ local function IsVisible(
     aimPart
 )
 
-    -- Wall Check desligado
     if not Config.WallCheck then
         return true
     end
@@ -609,13 +588,10 @@ local function IsVisible(
             params
         )
 
-    -- Nada bloqueando
     if result == nil then
         return true
     end
 
-    -- Caso o raycast encontre
-    -- uma parte do personagem
     if result.Instance
         and result.Instance:IsDescendantOf(
             character
@@ -655,15 +631,9 @@ local function GetClosestTarget()
                 player.Character
 
             local aimPart =
-                GetAimPart(
-                    character
-                )
+                GetAimPart(character)
 
             if aimPart then
-
-                --==========================
-                -- DISTANCE
-                --==========================
 
                 local worldDistance =
                     (
@@ -673,10 +643,6 @@ local function GetClosestTarget()
 
                 if worldDistance
                     <= Config.MaxDistance then
-
-                    --======================
-                    -- SCREEN POSITION
-                    --======================
 
                     local screenPosition,
                         visible =
@@ -697,16 +663,8 @@ local function GetClosestTarget()
                                 - center
                             ).Magnitude
 
-                        --==================
-                        -- FOV
-                        --==================
-
                         if screenDistance
                             <= Config.AimFOV then
-
-                            --==================
-                            -- WALL CHECK
-                            --==================
 
                             if IsVisible(
                                 player,
@@ -751,9 +709,7 @@ local function AimAt(player)
     end
 
     local aimPart =
-        GetAimPart(
-            character
-        )
+        GetAimPart(character)
 
     if not aimPart then
         return
@@ -776,11 +732,119 @@ local function AimAt(player)
         )
 end
 
-ActivationKey = Enum.KeyCode.Q,
-ActivationInputType = "Keyboard",
+--==================================================
+-- ACTIVATION INPUT
+--==================================================
+
+local function IsActivationInput(input)
+
+    -- KEYBOARD
+
+    if Config.ActivationInputType
+        == "Keyboard" then
+
+        return
+
+            input.UserInputType
+                == Enum.UserInputType.Keyboard
+
+            and
+
+            input.KeyCode
+                == Config.ActivationKey
+    end
+
+    -- M1
+
+    if Config.ActivationInputType
+        == "M1" then
+
+        return
+            input.UserInputType
+            == Enum.UserInputType.MouseButton1
+    end
+
+    -- M2
+
+    if Config.ActivationInputType
+        == "M2" then
+
+        return
+            input.UserInputType
+            == Enum.UserInputType.MouseButton2
+    end
+
+    return false
+end
 
 --==================================================
--- AIM STATE
+-- INPUT BEGAN
+--==================================================
+
+UserInputService.InputBegan:Connect(
+    function(
+        input,
+        processed
+    )
+
+        if processed then
+            return
+        end
+
+        if not Config.ActivationKeyEnabled then
+            return
+        end
+
+        if not IsActivationInput(input) then
+            return
+        end
+
+        -- HOLD
+
+        if Config.ActivationMode
+            == "Hold" then
+
+            HoldingAim =
+                true
+        end
+
+        -- TOGGLE
+
+        if Config.ActivationMode
+            == "Toggle" then
+
+            ToggleAimActive =
+                not ToggleAimActive
+        end
+    end
+)
+
+--==================================================
+-- INPUT ENDED
+--==================================================
+
+UserInputService.InputEnded:Connect(
+    function(input)
+
+        if not Config.ActivationKeyEnabled then
+            return
+        end
+
+        if not IsActivationInput(input) then
+            return
+        end
+
+        if Config.ActivationMode
+            == "Hold" then
+
+            HoldingAim =
+                false
+        end
+    end
+)
+
+--==================================================
+-- SHOULD AIM
 --==================================================
 
 local function ShouldAim()
@@ -789,20 +853,22 @@ local function ShouldAim()
         return false
     end
 
-    -- Sem Activation Key:
-    -- aimbot fica ativo direto
+    -- Activation Key OFF
     if not Config.ActivationKeyEnabled then
+
         return true
     end
 
-    -- Hold
+    -- HOLD
+
     if Config.ActivationMode
         == "Hold" then
 
         return HoldingAim
     end
 
-    -- Toggle
+    -- TOGGLE
+
     if Config.ActivationMode
         == "Toggle" then
 
@@ -819,9 +885,7 @@ end
 RunService.RenderStepped:Connect(
     function()
 
-        --==============================
         -- ESP
-        --==============================
 
         for player in pairs(
             ESPObjects
@@ -830,9 +894,7 @@ RunService.RenderStepped:Connect(
             UpdateESP(player)
         end
 
-        --==============================
         -- AIMBOT
-        --==============================
 
         if ShouldAim() then
 
@@ -925,9 +987,7 @@ AimTab:Section({
     TextSize = 16,
 })
 
---==============================
 -- ENABLE AIMBOT
---==============================
 
 AimTab:Toggle({
 
@@ -952,9 +1012,7 @@ AimTab:Toggle({
     end,
 })
 
---==============================
 -- TEAM CHECK
---==============================
 
 AimTab:Toggle({
 
@@ -970,9 +1028,7 @@ AimTab:Toggle({
     end,
 })
 
---==============================
 -- WALL CHECK
---==============================
 
 AimTab:Toggle({
 
@@ -988,9 +1044,7 @@ AimTab:Toggle({
     end,
 })
 
---==============================
 -- AIM PART
---==============================
 
 AimTab:Dropdown({
 
@@ -1016,16 +1070,25 @@ AimTab:Dropdown({
     end,
 })
 
---==============================
--- ACTIVATION KEY ENABLE
---==============================
+--==================================================
+-- ACTIVATION
+--==================================================
+
+AimTab:Section({
+
+    Title = "Activation",
+
+    TextSize = 16,
+})
+
+-- ENABLE ACTIVATION KEY
 
 AimTab:Toggle({
 
     Title = "Enable Activation Key",
 
     Desc =
-        "Desligado = Aimbot funciona sem tecla",
+        "OFF = Aimbot funciona sem tecla",
 
     Value =
         Config.ActivationKeyEnabled,
@@ -1043,9 +1106,84 @@ AimTab:Toggle({
     end,
 })
 
---==============================
+-- ACTIVATION INPUT
+
+AimTab:Dropdown({
+
+    Title = "Activation Key",
+
+    Desc =
+        "Tecla ou botao do mouse",
+
+    Values = {
+
+        "Q",
+
+        "E",
+
+        "F",
+
+        "R",
+
+        "T",
+
+        "LeftShift",
+
+        "LeftControl",
+
+        "Space",
+
+        "M1",
+
+        "M2",
+    },
+
+    Value = "Q",
+
+    Callback = function(value)
+
+        HoldingAim =
+            false
+
+        ToggleAimActive =
+            false
+
+        if value == "M1" then
+
+            Config.ActivationInputType =
+                "M1"
+
+        elseif value == "M2" then
+
+            Config.ActivationInputType =
+                "M2"
+
+        else
+
+            Config.ActivationInputType =
+                "Keyboard"
+
+            local success,
+                key =
+
+                pcall(
+                    function()
+
+                        return
+                            Enum.KeyCode[value]
+                    end
+                )
+
+            if success and key then
+
+                Config.ActivationKey =
+                    key
+            end
+        end
+    end,
+})
+
 -- ACTIVATION MODE
---==============================
 
 AimTab:Dropdown({
 
@@ -1073,78 +1211,25 @@ AimTab:Dropdown({
     end,
 })
 
---==============================
--- ACTIVATION KEY
---==============================
+--==================================================
+-- AIM SETTINGS
+--==================================================
 
-AimTab:Keybind({
+AimTab:Section({
 
-    Title = "Activation Key",
+    Title = "Aim Settings",
 
-    Desc =
-        "Tecla usada para ativar o Aimbot",
-
-    Value = "Q",
-
-    Callback = function(value)
-
-        local newKey = nil
-
-        -- Enum.KeyCode
-        if typeof(value)
-            == "EnumItem" then
-
-            newKey =
-                value
-        end
-
-        -- String
-        if typeof(value)
-            == "string" then
-
-            local success,
-                result =
-
-                pcall(
-                    function()
-
-                        return
-                            Enum.KeyCode[
-                                value
-                            ]
-                    end
-                )
-
-            if success then
-                newKey =
-                    result
-            end
-        end
-
-        if newKey then
-
-            Config.ActivationKey =
-                newKey
-
-            HoldingAim =
-                false
-
-            ToggleAimActive =
-                false
-        end
-    end,
+    TextSize = 16,
 })
 
---==============================
 -- SMOOTHNESS
---==============================
 
 AimTab:Slider({
 
     Title = "Smoothness",
 
     Desc =
-        "Maior = mira mais rapida",
+        "Maior = mais rapido",
 
     Step = 0.05,
 
@@ -1165,9 +1250,7 @@ AimTab:Slider({
     end,
 })
 
---==============================
 -- FOV
---==============================
 
 AimTab:Slider({
 
@@ -1192,9 +1275,7 @@ AimTab:Slider({
     end,
 })
 
---==============================
 -- MAX DISTANCE
---==============================
 
 AimTab:Slider({
 
@@ -1236,25 +1317,24 @@ SettingsTab:Paragraph({
         "Combat Test Suite",
 
     Desc =
-        "ESP + Aimbot\n"
-        .. "Author: Guilh3rm3Scr1pter\n\n"
-        .. "Aimbot padrao:\n"
+        "Author: Guilh3rm3Scr1pter\n\n"
+        .. "Aimbot: configuravel\n"
         .. "Wall Check: ON\n"
         .. "Aim Part: Head\n"
-        .. "Activation Key: Q\n"
-        .. "Mode: Hold\n"
+        .. "Activation: Q / M1 / M2\n"
+        .. "Mode: Hold / Toggle\n"
         .. "Smoothness: 0.85",
 })
 
---==============================
 -- DISABLE ESP
---==============================
 
 SettingsTab:Button({
 
-    Title = "Disable ESP",
+    Title =
+        "Disable ESP",
 
-    Icon = "eye-off",
+    Icon =
+        "eye-off",
 
     Callback = function()
 
@@ -1274,15 +1354,15 @@ SettingsTab:Button({
     end,
 })
 
---==============================
 -- ENABLE ESP
---==============================
 
 SettingsTab:Button({
 
-    Title = "Enable ESP",
+    Title =
+        "Enable ESP",
 
-    Icon = "eye",
+    Icon =
+        "eye",
 
     Callback = function()
 
@@ -1301,7 +1381,7 @@ WindUI:Notify({
         "GuiloHUB",
 
     Content =
-        "Interface carregada com sucesso.",
+        "GuiloHUB carregado com sucesso.",
 
     Duration = 5,
 })
