@@ -1,4 +1,3 @@
-```lua
 --[[
     GuiloHUB
     Author: Guilh3rm3Scr1pter
@@ -1430,4 +1429,3 @@ WindUI:Notify({
 
 print("[GuiloHUB] Loaded successfully.")
 print("[GuiloHUB] Author: Guilh3rm3Scr1pter")
-```
