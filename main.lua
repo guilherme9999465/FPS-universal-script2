@@ -1,28 +1,10 @@
---[[
+lua = r'''--[[
     GuiloHUB
     Author: Guilh3rm3Scr1pter
 
-    Features:
-    - ESP
-    - Team Check
-    - Names / Distance
-    - Aimbot
-    - Wall Check
-    - Aim Part
-    - Visible FOV Circle
-    - Current Target Indicator
-    - Configurable Colors
-    - Save / Load Config
-    - Player:
-        Speed
-        Jump Power
-        Infinite Jump
-        Fly
-    - Activation Key:
-        Keyboard
-        M1
-        M2
-    - Hold / Toggle mode
+    TEST BUILD
+    WindUI + ESP/target testing + visual settings + player testing.
+    Intended for experiences you control / authorized testing.
 ]]
 
 --==================================================
@@ -33,6 +15,10 @@ local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
 ))()
 
+if not WindUI then
+    error("GuiloHUB: WindUI failed to load.")
+end
+
 --==================================================
 -- SERVICES
 --==================================================
@@ -41,6 +27,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -50,48 +37,38 @@ local Camera = Workspace.CurrentCamera
 --==================================================
 
 local Config = {
-
-    -- ESP
     ESPEnabled = true,
-    ESPTeamCheck = true,
     ESPNames = true,
     ESPDistance = true,
+    ESPTeamCheck = true,
 
-    -- Aimbot
     AimbotEnabled = false,
-    AimbotTeamCheck = true,
-    WallCheck = true,
-
     AimPart = "Head",
     AimSmoothness = 0.85,
     AimFOV = 150,
     MaxDistance = 1000,
+    WallCheck = true,
 
-    -- Activation
-    ActivationKeyEnabled = true,
-    ActivationInputType = "Keyboard",
+    ActivationEnabled = true,
+    ActivationInput = "Keyboard",
     ActivationKey = Enum.KeyCode.Q,
     ActivationMode = "Hold",
 
-    -- FOV
     FOVVisible = true,
     FOVThickness = 2,
     FOVTransparency = 0.35,
 
-    -- Target indicator
-    TargetIndicator = true,
-
-    -- Colors
     EnemyColor = Color3.fromRGB(255, 70, 70),
     TeamColor = Color3.fromRGB(70, 170, 255),
     FOVColor = Color3.fromRGB(255, 255, 255),
     TargetColor = Color3.fromRGB(255, 220, 80),
 
-    -- Player
+    TargetIndicator = true,
+
     SpeedEnabled = false,
     WalkSpeed = 16,
 
-    JumpPowerEnabled = false,
+    JumpEnabled = false,
     JumpPower = 50,
 
     InfiniteJump = false,
@@ -100,17 +77,9 @@ local Config = {
     FlySpeed = 60,
 }
 
---==================================================
--- STATE
---==================================================
-
 local HoldingAim = false
-local ToggleAimActive = false
-
+local ToggleAim = false
 local CurrentTarget = nil
-
-local FlyConnection = nil
-local FlyVelocity = nil
 
 --==================================================
 -- WINDOW
@@ -120,16 +89,11 @@ local Window = WindUI:CreateWindow({
     Title = "GuiloHUB",
     Icon = "crosshair",
     Author = "Guilh3rm3Scr1pter",
-
     Folder = "GuiloHUB",
-
     Size = UDim2.fromOffset(650, 500),
-
     Theme = "Dark",
-
     Transparent = false,
     Resizable = true,
-
     SideBarWidth = 200,
 
     OpenButton = {
@@ -139,10 +103,6 @@ local Window = WindUI:CreateWindow({
         StrokeThickness = 2,
     },
 })
-
---==================================================
--- TABS
---==================================================
 
 local ESPTab = Window:Tab({
     Title = "ESP",
@@ -154,14 +114,14 @@ local AimTab = Window:Tab({
     Icon = "crosshair",
 })
 
-local PlayerTab = Window:Tab({
-    Title = "Player",
-    Icon = "user",
-})
-
 local VisualTab = Window:Tab({
     Title = "Visuals",
     Icon = "palette",
+})
+
+local PlayerTab = Window:Tab({
+    Title = "Player",
+    Icon = "user",
 })
 
 local ConfigTab = Window:Tab({
@@ -175,17 +135,17 @@ local SettingsTab = Window:Tab({
 })
 
 --==================================================
--- FOV CIRCLE
+-- FOV
 --==================================================
 
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "GuiloHUB_FOV"
 FOVGui.ResetOnSpawn = false
 FOVGui.IgnoreGuiInset = true
-FOVGui.Parent = game:GetService("CoreGui")
+FOVGui.Parent = CoreGui
 
 local FOVCircle = Instance.new("Frame")
-FOVCircle.Name = "FOVCircle"
+FOVCircle.Name = "Circle"
 FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 FOVCircle.BackgroundTransparency = 1
 FOVCircle.BorderSizePixel = 0
@@ -196,9 +156,6 @@ FOVCorner.CornerRadius = UDim.new(1, 0)
 FOVCorner.Parent = FOVCircle
 
 local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Thickness = Config.FOVThickness
-FOVStroke.Transparency = Config.FOVTransparency
-FOVStroke.Color = Config.FOVColor
 FOVStroke.Parent = FOVCircle
 
 --==================================================
@@ -209,42 +166,40 @@ local TargetGui = Instance.new("ScreenGui")
 TargetGui.Name = "GuiloHUB_Target"
 TargetGui.ResetOnSpawn = false
 TargetGui.IgnoreGuiInset = true
-TargetGui.Parent = game:GetService("CoreGui")
+TargetGui.Parent = CoreGui
 
 local TargetLabel = Instance.new("TextLabel")
-TargetLabel.Name = "TargetLabel"
 TargetLabel.AnchorPoint = Vector2.new(0.5, 0)
 TargetLabel.Position = UDim2.fromScale(0.5, 0.08)
-TargetLabel.Size = UDim2.fromOffset(350, 45)
-
+TargetLabel.Size = UDim2.fromOffset(400, 40)
 TargetLabel.BackgroundTransparency = 1
-TargetLabel.Text = ""
-TargetLabel.TextSize = 18
 TargetLabel.Font = Enum.Font.GothamBold
+TargetLabel.TextSize = 18
 TargetLabel.TextStrokeTransparency = 0.5
-
 TargetLabel.Visible = false
 TargetLabel.Parent = TargetGui
 
 --==================================================
--- ESP
+-- HELPERS
 --==================================================
 
-local ESPObjects = {}
+local function GetCharacter(player)
+    return player and player.Character
+end
 
-local function RemoveESP(player)
-    if ESPObjects[player] then
+local function GetHumanoid(player)
+    local character = GetCharacter(player)
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
 
-        if ESPObjects[player].Highlight then
-            ESPObjects[player].Highlight:Destroy()
-        end
+local function GetRoot(player)
+    local character = GetCharacter(player)
+    return character and character:FindFirstChild("HumanoidRootPart")
+end
 
-        if ESPObjects[player].Billboard then
-            ESPObjects[player].Billboard:Destroy()
-        end
-
-        ESPObjects[player] = nil
-    end
+local function Alive(player)
+    local humanoid = GetHumanoid(player)
+    return humanoid and humanoid.Health > 0
 end
 
 local function IsEnemy(player)
@@ -259,145 +214,137 @@ local function IsEnemy(player)
     return LocalPlayer.Team ~= player.Team
 end
 
-local function CreateESP(player)
+--==================================================
+-- ESP
+--==================================================
 
+local ESP = {}
+
+local function RemoveESP(player)
+    local data = ESP[player]
+    if not data then
+        return
+    end
+
+    if data.Highlight then
+        data.Highlight:Destroy()
+    end
+
+    if data.Billboard then
+        data.Billboard:Destroy()
+    end
+
+    ESP[player] = nil
+end
+
+local function CreateESP(player)
     if player == LocalPlayer then
         return
     end
 
     RemoveESP(player)
 
-    local Character = player.Character
+    local character = player.Character
+    local root = GetRoot(player)
 
-    if not Character then
+    if not character or not root then
         return
     end
 
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    local Root = Character:FindFirstChild("HumanoidRootPart")
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "GuiloHUB_ESP"
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillTransparency = 0.55
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
 
-    if not Humanoid or not Root then
-        return
-    end
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "GuiloHUB_Info"
+    billboard.Size = UDim2.fromOffset(220, 45)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = root
 
-    local Highlight = Instance.new("Highlight")
-    Highlight.Name = "GuiloHUB_ESP"
-    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    Highlight.FillTransparency = 0.55
-    Highlight.OutlineTransparency = 0
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+    label.TextStrokeTransparency = 0.5
+    label.Parent = billboard
 
-    local Enemy = IsEnemy(player)
-
-    if Enemy then
-        Highlight.FillColor = Config.EnemyColor
-        Highlight.OutlineColor = Config.EnemyColor
-    else
-        Highlight.FillColor = Config.TeamColor
-        Highlight.OutlineColor = Config.TeamColor
-    end
-
-    Highlight.Parent = Character
-
-    local Billboard = Instance.new("BillboardGui")
-    Billboard.Name = "GuiloHUB_Info"
-    Billboard.Size = UDim2.fromOffset(200, 50)
-    Billboard.StudsOffset = Vector3.new(0, 3, 0)
-    Billboard.AlwaysOnTop = true
-    Billboard.Parent = Root
-
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.fromScale(1, 1)
-    Label.BackgroundTransparency = 1
-    Label.TextSize = 14
-    Label.Font = Enum.Font.GothamBold
-    Label.TextStrokeTransparency = 0.5
-    Label.TextColor3 = Enemy and Config.EnemyColor or Config.TeamColor
-    Label.Parent = Billboard
-
-    ESPObjects[player] = {
-        Highlight = Highlight,
-        Billboard = Billboard,
-        Label = Label,
+    ESP[player] = {
+        Highlight = highlight,
+        Billboard = billboard,
+        Label = label,
     }
 end
 
 local function UpdateESP(player)
+    if player == LocalPlayer then
+        return
+    end
 
     if not Config.ESPEnabled then
         RemoveESP(player)
         return
     end
 
-    if not player.Character then
+    local root = GetRoot(player)
+    if not root then
         RemoveESP(player)
         return
     end
 
-    if not ESPObjects[player] then
+    if not ESP[player] then
         CreateESP(player)
+    end
+
+    local data = ESP[player]
+    if not data then
         return
     end
 
-    local Data = ESPObjects[player]
+    local enemy = IsEnemy(player)
+    local color = enemy and Config.EnemyColor or Config.TeamColor
 
-    local Character = player.Character
-    local Root = Character:FindFirstChild("HumanoidRootPart")
+    data.Highlight.FillColor = color
+    data.Highlight.OutlineColor = color
+    data.Label.TextColor3 = color
 
-    if not Root then
-        return
-    end
-
-    local Enemy = IsEnemy(player)
-
-    Data.Highlight.Enabled = true
-
-    if Enemy then
-        Data.Highlight.FillColor = Config.EnemyColor
-        Data.Highlight.OutlineColor = Config.EnemyColor
-        Data.Label.TextColor3 = Config.EnemyColor
-    else
-        Data.Highlight.FillColor = Config.TeamColor
-        Data.Highlight.OutlineColor = Config.TeamColor
-        Data.Label.TextColor3 = Config.TeamColor
-    end
-
-    local Text = ""
+    local text = ""
 
     if Config.ESPNames then
-        Text = player.DisplayName
+        text = player.DisplayName
     end
 
     if Config.ESPDistance then
+        local myRoot = GetRoot(LocalPlayer)
 
-        local MyCharacter = LocalPlayer.Character
-        local MyRoot = MyCharacter and MyCharacter:FindFirstChild("HumanoidRootPart")
-
-        if MyRoot then
-
-            local Distance = math.floor(
-                (Root.Position - MyRoot.Position).Magnitude
+        if myRoot then
+            local distance = math.floor(
+                (root.Position - myRoot.Position).Magnitude
             )
 
-            if Text ~= "" then
-                Text = Text .. " [" .. Distance .. "m]"
+            if text ~= "" then
+                text = text .. " [" .. distance .. "m]"
             else
-                Text = "[" .. Distance .. "m]"
+                text = "[" .. distance .. "m]"
             end
         end
     end
 
-    Data.Label.Text = Text
-    Data.Billboard.Enabled = Config.ESPNames or Config.ESPDistance
+    data.Label.Text = text
+    data.Billboard.Enabled = text ~= ""
 end
 
-local function SetupPlayer(player)
-
+local function SetupESPPlayer(player)
     if player == LocalPlayer then
         return
     end
 
     player.CharacterAdded:Connect(function()
-        task.wait(0.5)
+        task.wait(0.25)
 
         if Config.ESPEnabled then
             CreateESP(player)
@@ -405,11 +352,9 @@ local function SetupPlayer(player)
     end)
 
     player:GetPropertyChangedSignal("Team"):Connect(function()
-
         if Config.ESPEnabled then
             CreateESP(player)
         end
-
     end)
 
     if player.Character then
@@ -417,11 +362,11 @@ local function SetupPlayer(player)
     end
 end
 
-for _, Player in ipairs(Players:GetPlayers()) do
-    SetupPlayer(Player)
+for _, player in ipairs(Players:GetPlayers()) do
+    SetupESPPlayer(player)
 end
 
-Players.PlayerAdded:Connect(SetupPlayer)
+Players.PlayerAdded:Connect(SetupESPPlayer)
 
 Players.PlayerRemoving:Connect(function(player)
     RemoveESP(player)
@@ -432,129 +377,85 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 --==================================================
--- AIMBOT
+-- AIM TEST
 --==================================================
 
-local function IsAlive(player)
-
-    if not player.Character then
-        return false
-    end
-
-    local Humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-
-    return Humanoid and Humanoid.Health > 0
-end
-
-local function IsAimEnemy(player)
-
-    if not Config.AimbotTeamCheck then
-        return true
-    end
-
-    if not LocalPlayer.Team or not player.Team then
-        return true
-    end
-
-    return LocalPlayer.Team ~= player.Team
-end
-
 local function GetAimPart(player)
-
-    if not player.Character then
+    local character = GetCharacter(player)
+    if not character then
         return nil
     end
 
-    return player.Character:FindFirstChild(Config.AimPart)
-        or player.Character:FindFirstChild("HumanoidRootPart")
+    return character:FindFirstChild(Config.AimPart)
+        or character:FindFirstChild("Head")
+        or character:FindFirstChild("HumanoidRootPart")
 end
 
-local function IsVisible(part, character)
-
+local function Visible(part, character)
     if not Config.WallCheck then
         return true
     end
 
-    local Origin = Camera.CFrame.Position
-    local Direction = part.Position - Origin
+    local origin = Camera.CFrame.Position
+    local direction = part.Position - origin
 
-    local Params = RaycastParams.new()
-    Params.FilterType = Enum.RaycastFilterType.Exclude
-    Params.FilterDescendantsInstances = {
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {
         LocalPlayer.Character,
-        Camera
+        Camera,
     }
 
-    local Result = Workspace:Raycast(
-        Origin,
-        Direction,
-        Params
+    local result = Workspace:Raycast(
+        origin,
+        direction,
+        params
     )
 
-    if not Result then
+    if not result then
         return true
     end
 
-    return Result.Instance:IsDescendantOf(character)
+    return result.Instance:IsDescendantOf(character)
 end
 
 local function GetClosestTarget()
+    local closest = nil
+    local bestDistance = Config.AimFOV
 
-    local Closest = nil
-    local ClosestDistance = Config.AimFOV
-
-    local ViewportSize = Camera.ViewportSize
-    local Center = Vector2.new(
-        ViewportSize.X / 2,
-        ViewportSize.Y / 2
+    local viewport = Camera.ViewportSize
+    local center = Vector2.new(
+        viewport.X / 2,
+        viewport.Y / 2
     )
 
-    for _, Player in ipairs(Players:GetPlayers()) do
+    local myRoot = GetRoot(LocalPlayer)
+    if not myRoot then
+        return nil
+    end
 
-        if Player ~= LocalPlayer
-        and IsAlive(Player)
-        and IsAimEnemy(Player) then
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and Alive(player) and IsEnemy(player) then
+            local part = GetAimPart(player)
+            local root = GetRoot(player)
 
-            local Part = GetAimPart(Player)
+            if part and root then
+                local distance3D =
+                    (root.Position - myRoot.Position).Magnitude
 
-            if Part then
+                if distance3D <= Config.MaxDistance then
+                    local screen, onScreen =
+                        Camera:WorldToViewportPoint(part.Position)
 
-                local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+                    if onScreen then
+                        local screenDistance =
+                            (Vector2.new(screen.X, screen.Y) - center).Magnitude
 
-                local MyCharacter = LocalPlayer.Character
-                local MyRoot = MyCharacter and MyCharacter:FindFirstChild("HumanoidRootPart")
+                        if screenDistance <= bestDistance
+                            and Visible(part, player.Character) then
 
-                if Root and MyRoot then
-
-                    local Distance3D = (
-                        Root.Position - MyRoot.Position
-                    ).Magnitude
-
-                    if Distance3D <= Config.MaxDistance then
-
-                        local ScreenPosition, OnScreen =
-                            Camera:WorldToViewportPoint(Part.Position)
-
-                        if OnScreen then
-
-                            local Distance2D = (
-                                Vector2.new(
-                                    ScreenPosition.X,
-                                    ScreenPosition.Y
-                                ) - Center
-                            ).Magnitude
-
-                            if Distance2D <= ClosestDistance then
-
-                                if IsVisible(
-                                    Part,
-                                    Player.Character
-                                ) then
-
-                                    ClosestDistance = Distance2D
-                                    Closest = Player
-                                end
-                            end
+                            bestDistance = screenDistance
+                            closest = player
                         end
                     end
                 end
@@ -562,106 +463,15 @@ local function GetClosestTarget()
         end
     end
 
-    return Closest
+    return closest
 end
-
-local function AimAt(player)
-
-    if not player then
-        return
-    end
-
-    local Part = GetAimPart(player)
-
-    if not Part then
-        return
-    end
-
-    local CameraPosition = Camera.CFrame.Position
-
-    local Desired = CFrame.lookAt(
-        CameraPosition,
-        Part.Position
-    )
-
-    Camera.CFrame = Camera.CFrame:Lerp(
-        Desired,
-        math.clamp(Config.AimSmoothness, 0.01, 1)
-    )
-end
-
---==================================================
--- ACTIVATION
---==================================================
-
-local function IsActivationInput(input)
-
-    if Config.ActivationInputType == "M1" then
-
-        return input.UserInputType
-            == Enum.UserInputType.MouseButton1
-
-    elseif Config.ActivationInputType == "M2" then
-
-        return input.UserInputType
-            == Enum.UserInputType.MouseButton2
-
-    else
-
-        return input.UserInputType
-            == Enum.UserInputType.Keyboard
-            and input.KeyCode == Config.ActivationKey
-
-    end
-end
-
-UserInputService.InputBegan:Connect(function(input, processed)
-
-    if processed then
-        return
-    end
-
-    if not Config.ActivationKeyEnabled then
-        return
-    end
-
-    if not IsActivationInput(input) then
-        return
-    end
-
-    if Config.ActivationMode == "Hold" then
-
-        HoldingAim = true
-
-    else
-
-        ToggleAimActive = not ToggleAimActive
-
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-
-    if not Config.ActivationKeyEnabled then
-        return
-    end
-
-    if not IsActivationInput(input) then
-        return
-    end
-
-    if Config.ActivationMode == "Hold" then
-        HoldingAim = false
-    end
-end)
 
 local function ShouldAim()
-
     if not Config.AimbotEnabled then
         return false
     end
 
-    if not Config.ActivationKeyEnabled then
+    if not Config.ActivationEnabled then
         return true
     end
 
@@ -669,67 +479,58 @@ local function ShouldAim()
         return HoldingAim
     end
 
-    return ToggleAimActive
+    return ToggleAim
 end
 
---==================================================
--- PLAYER
---==================================================
-
-local function GetHumanoid()
-
-    local Character = LocalPlayer.Character
-
-    if not Character then
-        return nil
+local function IsActivationInput(input)
+    if Config.ActivationInput == "M1" then
+        return input.UserInputType == Enum.UserInputType.MouseButton1
     end
 
-    return Character:FindFirstChildOfClass("Humanoid")
+    if Config.ActivationInput == "M2" then
+        return input.UserInputType == Enum.UserInputType.MouseButton2
+    end
+
+    return input.UserInputType == Enum.UserInputType.Keyboard
+        and input.KeyCode == Config.ActivationKey
 end
 
-local function ApplyPlayerStats()
-
-    local Humanoid = GetHumanoid()
-
-    if not Humanoid then
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed or not Config.ActivationEnabled then
         return
     end
 
-    if Config.SpeedEnabled then
-        Humanoid.WalkSpeed = Config.WalkSpeed
-    else
-        Humanoid.WalkSpeed = 16
-    end
-
-    if Config.JumpPowerEnabled then
-        Humanoid.UseJumpPower = true
-        Humanoid.JumpPower = Config.JumpPower
-    else
-        Humanoid.UseJumpPower = true
-        Humanoid.JumpPower = 50
-    end
-end
-
--- Infinite Jump
-UserInputService.JumpRequest:Connect(function()
-
-    if not Config.InfiniteJump then
+    if not IsActivationInput(input) then
         return
     end
 
-    local Humanoid = GetHumanoid()
+    if Config.ActivationMode == "Hold" then
+        HoldingAim = true
+    else
+        ToggleAim = not ToggleAim
+    end
+end)
 
-    if Humanoid then
-        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+UserInputService.InputEnded:Connect(function(input)
+    if not Config.ActivationEnabled then
+        return
+    end
+
+    if Config.ActivationMode == "Hold"
+        and IsActivationInput(input) then
+
+        HoldingAim = false
     end
 end)
 
 --==================================================
--- FLY
+-- PLAYER TEST
 --==================================================
 
-local function StopFly()
+local FlyConnection = nil
+local FlyVelocity = nil
 
+local function StopFly()
     if FlyConnection then
         FlyConnection:Disconnect()
         FlyConnection = nil
@@ -740,109 +541,112 @@ local function StopFly()
         FlyVelocity = nil
     end
 
-    local Humanoid = GetHumanoid()
-
-    if Humanoid then
-        Humanoid.PlatformStand = false
+    local humanoid = GetHumanoid(LocalPlayer)
+    if humanoid then
+        humanoid.PlatformStand = false
     end
 end
 
-local function StartFly()
-
-    StopFly()
-
-    local Character = LocalPlayer.Character
-
-    if not Character then
+local function ApplyPlayerSettings()
+    local humanoid = GetHumanoid(LocalPlayer)
+    if not humanoid then
         return
     end
 
-    local Root = Character:FindFirstChild("HumanoidRootPart")
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    humanoid.WalkSpeed =
+        Config.SpeedEnabled and Config.WalkSpeed or 16
 
-    if not Root or not Humanoid then
+    humanoid.UseJumpPower = true
+
+    humanoid.JumpPower =
+        Config.JumpEnabled and Config.JumpPower or 50
+end
+
+local function StartFly()
+    StopFly()
+
+    local character = GetCharacter(LocalPlayer)
+    local root = GetRoot(LocalPlayer)
+    local humanoid = GetHumanoid(LocalPlayer)
+
+    if not character or not root or not humanoid then
         return
     end
 
     FlyVelocity = Instance.new("BodyVelocity")
-    FlyVelocity.Name = "GuiloHUB_FlyVelocity"
+    FlyVelocity.Name = "GuiloHUB_Fly"
     FlyVelocity.MaxForce = Vector3.new(
         math.huge,
         math.huge,
         math.huge
     )
     FlyVelocity.Velocity = Vector3.zero
-    FlyVelocity.Parent = Root
+    FlyVelocity.Parent = root
 
-    Humanoid.PlatformStand = true
+    humanoid.PlatformStand = true
 
     FlyConnection = RunService.RenderStepped:Connect(function()
+        if not Config.FlyEnabled
+            or not character.Parent
+            or not root.Parent then
 
-        if not Config.FlyEnabled then
             StopFly()
             return
         end
 
-        if not Character.Parent then
-            StopFly()
-            return
-        end
-
-        local Direction = Vector3.zero
-
-        local HumanoidMove =
-            Humanoid.MoveDirection
-
-        Direction += HumanoidMove
+        local direction = humanoid.MoveDirection
 
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            Direction += Vector3.new(0, 1, 0)
+            direction += Vector3.new(0, 1, 0)
         end
 
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-            Direction -= Vector3.new(0, 1, 0)
+            direction -= Vector3.new(0, 1, 0)
         end
 
-        if Direction.Magnitude > 0 then
-
-            Direction = Direction.Unit
-
+        if direction.Magnitude > 0 then
             FlyVelocity.Velocity =
-                Direction * Config.FlySpeed
-
+                direction.Unit * Config.FlySpeed
         else
-
             FlyVelocity.Velocity = Vector3.zero
-
         end
     end)
 end
 
+UserInputService.JumpRequest:Connect(function()
+    if not Config.InfiniteJump then
+        return
+    end
+
+    local humanoid = GetHumanoid(LocalPlayer)
+
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
 LocalPlayer.CharacterAdded:Connect(function()
-
-    task.wait(1)
-
-    ApplyPlayerStats()
+    task.wait(0.5)
+    ApplyPlayerSettings()
 
     if Config.FlyEnabled then
         StartFly()
     end
-
 end)
 
 --==================================================
--- RENDER LOOP
+-- RENDER
 --==================================================
 
 RunService.RenderStepped:Connect(function()
+    Camera = Workspace.CurrentCamera or Camera
 
     -- FOV
-
-    local ViewportSize = Camera.ViewportSize
+    local viewport = Camera.ViewportSize
 
     FOVCircle.Position = UDim2.fromOffset(
-        ViewportSize.X / 2,
-        ViewportSize.Y / 2
+        viewport.X / 2,
+        viewport.Y / 2
     )
 
     FOVCircle.Size = UDim2.fromOffset(
@@ -859,49 +663,29 @@ RunService.RenderStepped:Connect(function()
     FOVStroke.Transparency = Config.FOVTransparency
 
     -- ESP
-
-    for _, Player in ipairs(Players:GetPlayers()) do
-
-        if Player ~= LocalPlayer then
-            UpdateESP(Player)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            UpdateESP(player)
         end
-
     end
 
-    -- Aimbot
-
+    -- Target
     if ShouldAim() then
-
         CurrentTarget = GetClosestTarget()
-
-        if CurrentTarget then
-            AimAt(CurrentTarget)
-        end
-
     else
-
         CurrentTarget = nil
     end
 
-    -- Target indicator
-
     if Config.TargetIndicator and CurrentTarget then
+        local root = GetRoot(CurrentTarget)
+        local myRoot = GetRoot(LocalPlayer)
 
-        local Character = CurrentTarget.Character
-        local Root = Character and
-            Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local distance = 0
 
-        if Root then
-
-            local MyCharacter = LocalPlayer.Character
-            local MyRoot = MyCharacter and
-                MyCharacter:FindFirstChild("HumanoidRootPart")
-
-            local Distance = 0
-
-            if MyRoot then
-                Distance = math.floor(
-                    (Root.Position - MyRoot.Position).Magnitude
+            if myRoot then
+                distance = math.floor(
+                    (root.Position - myRoot.Position).Magnitude
                 )
             end
 
@@ -909,33 +693,42 @@ RunService.RenderStepped:Connect(function()
                 "TARGET: "
                 .. CurrentTarget.DisplayName
                 .. "  •  "
-                .. Distance
+                .. distance
                 .. "m"
 
             TargetLabel.TextColor3 = Config.TargetColor
             TargetLabel.Visible = true
-
         else
-
             TargetLabel.Visible = false
-
         end
-
     else
-
         TargetLabel.Visible = false
-
     end
 
-    -- Player stats
+    -- Aim
+    if ShouldAim() and CurrentTarget then
+        local part = GetAimPart(CurrentTarget)
+
+        if part then
+            local desired = CFrame.lookAt(
+                Camera.CFrame.Position,
+                part.Position
+            )
+
+            Camera.CFrame = Camera.CFrame:Lerp(
+                desired,
+                math.clamp(Config.AimSmoothness, 0.01, 1)
+            )
+        end
+    end
 
     if not Config.FlyEnabled then
-        ApplyPlayerStats()
+        ApplyPlayerSettings()
     end
 end)
 
 --==================================================
--- ESP TAB
+-- ESP UI
 --==================================================
 
 ESPTab:Section({
@@ -943,21 +736,19 @@ ESPTab:Section({
 })
 
 ESPTab:Toggle({
-    Flag = "ESPEnabled",
     Title = "Enable ESP",
     Value = Config.ESPEnabled,
-
     Callback = function(value)
         Config.ESPEnabled = value
 
         if not value then
-            for Player in pairs(ESPObjects) do
-                RemoveESP(Player)
+            for player in pairs(ESP) do
+                RemoveESP(player)
             end
         else
-            for _, Player in ipairs(Players:GetPlayers()) do
-                if Player ~= LocalPlayer then
-                    CreateESP(Player)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    CreateESP(player)
                 end
             end
         end
@@ -965,140 +756,98 @@ ESPTab:Toggle({
 })
 
 ESPTab:Toggle({
-    Flag = "ESPTeamCheck",
     Title = "Team Check",
     Value = Config.ESPTeamCheck,
-
     Callback = function(value)
         Config.ESPTeamCheck = value
     end,
 })
 
 ESPTab:Toggle({
-    Flag = "ESPNames",
-    Title = "Player Names",
+    Title = "Names",
     Value = Config.ESPNames,
-
     Callback = function(value)
         Config.ESPNames = value
     end,
 })
 
 ESPTab:Toggle({
-    Flag = "ESPDistance",
     Title = "Distance",
     Value = Config.ESPDistance,
-
     Callback = function(value)
         Config.ESPDistance = value
     end,
 })
 
 --==================================================
--- AIMBOT TAB
+-- AIM UI
 --==================================================
 
 AimTab:Section({
-    Title = "Aimbot",
+    Title = "Aim Test",
 })
 
 AimTab:Toggle({
-    Flag = "AimbotEnabled",
     Title = "Enable Aimbot",
     Value = Config.AimbotEnabled,
-
     Callback = function(value)
         Config.AimbotEnabled = value
     end,
 })
 
 AimTab:Toggle({
-    Flag = "AimbotTeamCheck",
-    Title = "Team Check",
-    Value = Config.AimbotTeamCheck,
-
-    Callback = function(value)
-        Config.AimbotTeamCheck = value
-    end,
-})
-
-AimTab:Toggle({
-    Flag = "WallCheck",
     Title = "Wall Check",
     Value = Config.WallCheck,
-
     Callback = function(value)
         Config.WallCheck = value
     end,
 })
 
 AimTab:Dropdown({
-    Flag = "AimPart",
     Title = "Aim Part",
-
     Values = {
         "Head",
         "UpperTorso",
         "LowerTorso",
         "HumanoidRootPart",
     },
-
     Value = Config.AimPart,
-
     Callback = function(value)
         Config.AimPart = value
     end,
 })
-
---==================================================
--- ACTIVATION
---==================================================
 
 AimTab:Section({
     Title = "Activation",
 })
 
 AimTab:Toggle({
-    Flag = "ActivationKeyEnabled",
-    Title = "Enable Activation Key",
-    Value = Config.ActivationKeyEnabled,
-
+    Title = "Enable Activation",
+    Value = Config.ActivationEnabled,
     Callback = function(value)
-
-        Config.ActivationKeyEnabled = value
-
+        Config.ActivationEnabled = value
         HoldingAim = false
-        ToggleAimActive = false
-
+        ToggleAim = false
     end,
 })
 
 AimTab:Dropdown({
-    Flag = "ActivationInputType",
-    Title = "Activation Input",
-
+    Title = "Input",
     Values = {
         "Keyboard",
         "M1",
         "M2",
     },
-
-    Value = Config.ActivationInputType,
-
+    Value = Config.ActivationInput,
     Callback = function(value)
-
-        Config.ActivationInputType = value
-
+        Config.ActivationInput = value
         HoldingAim = false
-        ToggleAimActive = false
-
+        ToggleAim = false
     end,
 })
 
 AimTab:Dropdown({
-    Flag = "ActivationKey",
     Title = "Keyboard Key",
-
     Values = {
         "Q",
         "E",
@@ -1109,110 +858,78 @@ AimTab:Dropdown({
         "LeftControl",
         "Space",
     },
-
     Value = "Q",
-
     Callback = function(value)
-
-        local Keys = {
+        local keys = {
             Q = Enum.KeyCode.Q,
             E = Enum.KeyCode.E,
             F = Enum.KeyCode.F,
             R = Enum.KeyCode.R,
             T = Enum.KeyCode.T,
-
             LeftShift = Enum.KeyCode.LeftShift,
             LeftControl = Enum.KeyCode.LeftControl,
             Space = Enum.KeyCode.Space,
         }
 
-        Config.ActivationKey = Keys[value] or Enum.KeyCode.Q
-
+        Config.ActivationKey = keys[value] or Enum.KeyCode.Q
     end,
 })
 
 AimTab:Dropdown({
-    Flag = "ActivationMode",
-    Title = "Activation Mode",
-
+    Title = "Mode",
     Values = {
         "Hold",
         "Toggle",
     },
-
     Value = Config.ActivationMode,
-
     Callback = function(value)
-
         Config.ActivationMode = value
-
         HoldingAim = false
-        ToggleAimActive = false
-
+        ToggleAim = false
     end,
 })
 
---==================================================
--- AIM SETTINGS
---==================================================
-
-AimTab:Section({
-    Title = "Aim Settings",
-})
-
 AimTab:Slider({
-    Flag = "AimSmoothness",
     Title = "Smoothness",
-
     Value = {
         Min = 0.10,
         Max = 1,
         Default = Config.AimSmoothness,
     },
-
     Step = 0.01,
-
     Callback = function(value)
         Config.AimSmoothness = value
     end,
 })
 
 AimTab:Slider({
-    Flag = "AimFOV",
     Title = "FOV",
-
     Value = {
         Min = 50,
         Max = 500,
         Default = Config.AimFOV,
     },
-
     Step = 5,
-
     Callback = function(value)
         Config.AimFOV = value
     end,
 })
 
 AimTab:Slider({
-    Flag = "MaxDistance",
     Title = "Max Distance",
-
     Value = {
         Min = 100,
         Max = 3000,
         Default = Config.MaxDistance,
     },
-
     Step = 50,
-
     Callback = function(value)
         Config.MaxDistance = value
     end,
 })
 
 --==================================================
--- VISUALS TAB
+-- VISUAL UI
 --==================================================
 
 VisualTab:Section({
@@ -1220,83 +937,64 @@ VisualTab:Section({
 })
 
 VisualTab:Toggle({
-    Flag = "FOVVisible",
     Title = "Show FOV",
     Value = Config.FOVVisible,
-
     Callback = function(value)
         Config.FOVVisible = value
     end,
 })
 
 VisualTab:Slider({
-    Flag = "FOVThickness",
     Title = "FOV Thickness",
-
     Value = {
         Min = 1,
         Max = 6,
         Default = Config.FOVThickness,
     },
-
     Step = 1,
-
     Callback = function(value)
         Config.FOVThickness = value
     end,
 })
 
 VisualTab:Slider({
-    Flag = "FOVTransparency",
     Title = "FOV Transparency",
-
     Value = {
         Min = 0,
         Max = 1,
         Default = Config.FOVTransparency,
     },
-
     Step = 0.05,
-
     Callback = function(value)
         Config.FOVTransparency = value
     end,
 })
 
 VisualTab:Colorpicker({
-    Flag = "FOVColor",
     Title = "FOV Color",
     Default = Config.FOVColor,
-
     Callback = function(value)
         Config.FOVColor = value
     end,
 })
 
 VisualTab:Section({
-    Title = "Target",
+    Title = "Target Indicator",
 })
 
 VisualTab:Toggle({
-    Flag = "TargetIndicator",
-    Title = "Target Indicator",
+    Title = "Show Target",
     Value = Config.TargetIndicator,
-
     Callback = function(value)
         Config.TargetIndicator = value
     end,
 })
 
 VisualTab:Colorpicker({
-    Flag = "TargetColor",
     Title = "Target Color",
     Default = Config.TargetColor,
-
     Callback = function(value)
-
         Config.TargetColor = value
-        TargetLabel.TextColor3 = value
-
     end,
 })
 
@@ -1305,120 +1003,91 @@ VisualTab:Section({
 })
 
 VisualTab:Colorpicker({
-    Flag = "EnemyColor",
     Title = "Enemy Color",
     Default = Config.EnemyColor,
-
     Callback = function(value)
         Config.EnemyColor = value
     end,
 })
 
 VisualTab:Colorpicker({
-    Flag = "TeamColor",
     Title = "Team Color",
     Default = Config.TeamColor,
-
     Callback = function(value)
         Config.TeamColor = value
     end,
 })
 
 --==================================================
--- PLAYER TAB
+-- PLAYER UI
 --==================================================
 
 PlayerTab:Section({
-    Title = "Movement",
+    Title = "Movement Test",
 })
 
 PlayerTab:Toggle({
-    Flag = "SpeedEnabled",
     Title = "Enable Speed",
     Value = Config.SpeedEnabled,
-
     Callback = function(value)
-
         Config.SpeedEnabled = value
-        ApplyPlayerStats()
-
+        ApplyPlayerSettings()
     end,
 })
 
 PlayerTab:Slider({
-    Flag = "WalkSpeed",
     Title = "Walk Speed",
-
     Value = {
         Min = 16,
         Max = 150,
         Default = Config.WalkSpeed,
     },
-
     Step = 1,
-
     Callback = function(value)
-
         Config.WalkSpeed = value
-        ApplyPlayerStats()
-
+        ApplyPlayerSettings()
     end,
 })
 
 PlayerTab:Toggle({
-    Flag = "JumpPowerEnabled",
     Title = "Enable Jump Power",
-    Value = Config.JumpPowerEnabled,
-
+    Value = Config.JumpEnabled,
     Callback = function(value)
-
-        Config.JumpPowerEnabled = value
-        ApplyPlayerStats()
-
+        Config.JumpEnabled = value
+        ApplyPlayerSettings()
     end,
 })
 
 PlayerTab:Slider({
-    Flag = "JumpPower",
     Title = "Jump Power",
-
     Value = {
         Min = 50,
         Max = 200,
         Default = Config.JumpPower,
     },
-
     Step = 5,
-
     Callback = function(value)
-
         Config.JumpPower = value
-        ApplyPlayerStats()
-
+        ApplyPlayerSettings()
     end,
 })
 
 PlayerTab:Toggle({
-    Flag = "InfiniteJump",
     Title = "Infinite Jump",
     Value = Config.InfiniteJump,
-
     Callback = function(value)
         Config.InfiniteJump = value
     end,
 })
 
 PlayerTab:Section({
-    Title = "Fly",
+    Title = "Fly Test",
 })
 
 PlayerTab:Toggle({
-    Flag = "FlyEnabled",
     Title = "Enable Fly",
     Value = Config.FlyEnabled,
-
     Callback = function(value)
-
         Config.FlyEnabled = value
 
         if value then
@@ -1426,22 +1095,17 @@ PlayerTab:Toggle({
         else
             StopFly()
         end
-
     end,
 })
 
 PlayerTab:Slider({
-    Flag = "FlySpeed",
     Title = "Fly Speed",
-
     Value = {
         Min = 10,
         Max = 200,
         Default = Config.FlySpeed,
     },
-
     Step = 5,
-
     Callback = function(value)
         Config.FlySpeed = value
     end,
@@ -1449,274 +1113,141 @@ PlayerTab:Slider({
 
 PlayerTab:Button({
     Title = "Reset Player",
-
     Callback = function()
-
         Config.SpeedEnabled = false
-        Config.JumpPowerEnabled = false
+        Config.JumpEnabled = false
         Config.InfiniteJump = false
         Config.FlyEnabled = false
 
         StopFly()
 
-        local Humanoid = GetHumanoid()
+        local humanoid = GetHumanoid(LocalPlayer)
 
-        if Humanoid then
-            Humanoid.WalkSpeed = 16
-            Humanoid.UseJumpPower = true
-            Humanoid.JumpPower = 50
-            Humanoid.PlatformStand = false
+        if humanoid then
+            humanoid.WalkSpeed = 16
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = 50
+            humanoid.PlatformStand = false
         end
 
         WindUI:Notify({
-            Title = "Player Reset",
+            Title = "Player",
             Content = "Player settings reset.",
             Duration = 3,
         })
-
     end,
 })
 
 --==================================================
--- CONFIG TAB
+-- CONFIG UI
 --==================================================
 
 ConfigTab:Paragraph({
-    Title = "Configuration Manager",
-    Desc = "Save and load your GuiloHUB settings.",
+    Title = "Configuration",
+    Desc = "WindUI configuration controls.",
 })
 
-local ConfigManager = Window.ConfigManager
-
-local ConfigName = "default"
-local CurrentConfig = nil
-
-if ConfigManager then
-
-    ConfigManager:Init(Window)
-
-    ConfigTab:Input({
-        Title = "Config Name",
-        Value = ConfigName,
-
-        Callback = function(value)
-
-            if value and value ~= "" then
-                ConfigName = value
-            end
-
-        end,
-    })
-
-    ConfigTab:Button({
-        Title = "Save Config",
-        Icon = "save",
-
-        Callback = function()
-
-            local Success, Result = pcall(function()
-
-                CurrentConfig =
-                    ConfigManager:CreateConfig(
-                        ConfigName
-                    )
-
-                return CurrentConfig:Save()
-
+ConfigTab:Button({
+    Title = "Save Current Config",
+    Callback = function()
+        if Window.ConfigManager then
+            local ok, err = pcall(function()
+                Window.ConfigManager:Save()
             end)
 
-            if Success and Result then
+            WindUI:Notify({
+                Title = ok and "Config Saved" or "Config Error",
+                Content = ok and "Configuration saved." or tostring(err),
+                Duration = 3,
+            })
+        else
+            WindUI:Notify({
+                Title = "Config",
+                Content = "ConfigManager unavailable in this environment.",
+                Duration = 3,
+            })
+        end
+    end,
+})
 
-                WindUI:Notify({
-                    Title = "Config Saved",
-                    Content =
-                        "Saved: " .. ConfigName,
-                    Icon = "check",
-                    Duration = 3,
-                })
+ConfigTab:Button({
+    Title = "Load Config",
+    Callback = function()
+        if Window.ConfigManager then
+            local ok, err = pcall(function()
+                Window.ConfigManager:Load()
+            end)
 
-            else
-
-                WindUI:Notify({
-                    Title = "Config Error",
-                    Content =
-                        "Could not save config.",
-                    Icon = "x",
-                    Duration = 3,
-                })
-
-                warn(
-                    "[GuiloHUB] Save error:",
-                    Result
-                )
-
-            end
-        end,
-    })
-
-    ConfigTab:Button({
-        Title = "Load Config",
-        Icon = "folder",
-
-        Callback = function()
-
-            local Success, Result =
-                pcall(function()
-
-                    CurrentConfig =
-                        ConfigManager:CreateConfig(
-                            ConfigName
-                        )
-
-                    return CurrentConfig:Load()
-
-                end)
-
-            if Success and Result then
-
-                WindUI:Notify({
-                    Title = "Config Loaded",
-                    Content =
-                        "Loaded: " .. ConfigName,
-                    Icon = "refresh-cw",
-                    Duration = 3,
-                })
-
-            else
-
-                WindUI:Notify({
-                    Title = "Config Error",
-                    Content =
-                        "Config not found or invalid.",
-                    Icon = "x",
-                    Duration = 3,
-                })
-
-                warn(
-                    "[GuiloHUB] Load error:",
-                    Result
-                )
-
-            end
-        end,
-    })
-
-    ConfigTab:Button({
-        Title = "Save As Default",
-
-        Callback = function()
-
-            ConfigName = "default"
-
-            local Success, Result =
-                pcall(function()
-
-                    CurrentConfig =
-                        ConfigManager:CreateConfig(
-                            "default"
-                        )
-
-                    return CurrentConfig:Save()
-
-                end)
-
-            if Success and Result then
-
-                WindUI:Notify({
-                    Title = "Default Saved",
-                    Content =
-                        "Default configuration saved.",
-                    Icon = "check",
-                    Duration = 3,
-                })
-
-            end
-
-        end,
-    })
-
-else
-
-    ConfigTab:Paragraph({
-        Title = "Config Manager Unavailable",
-        Desc =
-            "The current environment does not expose WindUI's config manager.",
-    })
-
-end
+            WindUI:Notify({
+                Title = ok and "Config Loaded" or "Config Error",
+                Content = ok and "Configuration loaded." or tostring(err),
+                Duration = 3,
+            })
+        else
+            WindUI:Notify({
+                Title = "Config",
+                Content = "ConfigManager unavailable in this environment.",
+                Duration = 3,
+            })
+        end
+    end,
+})
 
 --==================================================
--- SETTINGS TAB
+-- SETTINGS
 --==================================================
 
 SettingsTab:Paragraph({
     Title = "GuiloHUB",
-    Desc = "Guilh3rm3Scr1pter",
+    Desc = "Author: Guilh3rm3Scr1pter",
 })
 
 SettingsTab:Paragraph({
-    Title = "Controls",
-    Desc =
-        "Aimbot activation can use Keyboard, M1 or M2.\n"
-        .. "Hold keeps the aim active while pressed.\n"
-        .. "Toggle switches it on/off.",
+    Title = "Test Build",
+    Desc = "Movement and targeting features are intended for authorized testing.",
 })
 
 SettingsTab:Button({
     Title = "Disable ESP",
-
     Callback = function()
-
         Config.ESPEnabled = false
 
-        for Player in pairs(ESPObjects) do
-            RemoveESP(Player)
+        for player in pairs(ESP) do
+            RemoveESP(player)
         end
-
-        WindUI:Notify({
-            Title = "ESP",
-            Content = "ESP disabled.",
-            Duration = 2,
-        })
-
     end,
 })
 
 SettingsTab:Button({
     Title = "Enable ESP",
-
     Callback = function()
-
         Config.ESPEnabled = true
 
-        for _, Player in ipairs(Players:GetPlayers()) do
-
-            if Player ~= LocalPlayer then
-                CreateESP(Player)
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                CreateESP(player)
             end
-
         end
-
-        WindUI:Notify({
-            Title = "ESP",
-            Content = "ESP enabled.",
-            Duration = 2,
-        })
-
     end,
 })
 
 --==================================================
--- NOTIFICATION
+-- FINAL
 --==================================================
 
 WindUI:Notify({
     Title = "GuiloHUB",
-    Content = "Hub carregada com sucesso.",
+    Content = "Loaded successfully.",
     Icon = "check",
     Duration = 5,
 })
 
 print("[GuiloHUB] Loaded successfully.")
 print("[GuiloHUB] Author: Guilh3rm3Scr1pter")
-```
+'''
+path = "/mnt/data/GuiloHUB.lua"
+with open(path, "w", encoding="utf-8", newline="\n") as f:
+    f.write(lua)
+print(path)
+print("Lua characters:", len(lua))
+print("Lines:", len(lua.splitlines()))
