@@ -1,3 +1,4 @@
+```lua
 --[[
     GuiloHUB
     Author: Guilh3rm3Scr1pter
@@ -39,6 +40,7 @@ local Config = {
     ESPTeamCheck = true,
 
     AimbotEnabled = false,
+    AimTeamCheck = true,
     AimPart = "Head",
     AimSmoothness = 0.85,
     AimFOV = 150,
@@ -216,8 +218,22 @@ local function Alive(player)
     return humanoid and humanoid.Health > 0
 end
 
+-- ESP TEAM CHECK
 local function IsEnemy(player)
     if not Config.ESPTeamCheck then
+        return true
+    end
+
+    if not LocalPlayer.Team or not player.Team then
+        return true
+    end
+
+    return LocalPlayer.Team ~= player.Team
+end
+
+-- AIMBOT TEAM CHECK
+local function IsAimTarget(player)
+    if not Config.AimTeamCheck then
         return true
     end
 
@@ -322,7 +338,9 @@ local function UpdateESP(player)
         return
     end
 
-    local color = player.Team and player.Team.TeamColor.Color or player.TeamColor.Color
+    local color = player.Team
+        and player.Team.TeamColor.Color
+        or player.TeamColor.Color
 
     data.Highlight.FillColor = color
     data.Highlight.OutlineColor = color
@@ -456,7 +474,7 @@ local function GetClosestTarget()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer
             and Alive(player)
-            and IsEnemy(player) then
+            and IsAimTarget(player) then
 
             local part = GetAimPart(player)
             local root = GetRoot(player)
@@ -596,9 +614,6 @@ local function ApplyPlayerSettings()
         humanoid.UseJumpPower = true
         humanoid.JumpPower = Config.JumpPower
     else
-        -- IMPORTANT:
-        -- Não força JumpPower = 50.
-        -- Restaura exatamente o valor original do jogo.
         if OriginalUseJumpPower ~= nil then
             humanoid.UseJumpPower = OriginalUseJumpPower
         end
@@ -694,8 +709,6 @@ LocalPlayer.CharacterAdded:Connect(function()
     local humanoid = GetHumanoid(LocalPlayer)
 
     if humanoid then
-        -- Captura os valores do jogo ANTES
-        -- de aplicar qualquer configuração.
         SaveOriginalMovementValues(humanoid)
     end
 
@@ -706,7 +719,6 @@ LocalPlayer.CharacterAdded:Connect(function()
     end
 end)
 
--- Captura o valor inicial do personagem.
 do
     local humanoid = GetHumanoid(LocalPlayer)
 
@@ -883,6 +895,19 @@ AimTab:Toggle({
 
     Callback = function(value)
         Config.AimbotEnabled = value
+    end,
+})
+
+AimTab:Toggle({
+    Title = "Team Check",
+    Desc = "Ignore players on your team.",
+    Value = Config.AimTeamCheck,
+
+    Callback = function(value)
+        Config.AimTeamCheck = value
+
+        -- Recalcula o alvo imediatamente com a nova regra.
+        CurrentTarget = nil
     end,
 })
 
@@ -1405,3 +1430,4 @@ WindUI:Notify({
 
 print("[GuiloHUB] Loaded successfully.")
 print("[GuiloHUB] Author: Guilh3rm3Scr1pter")
+```
