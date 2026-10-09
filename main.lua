@@ -218,6 +218,7 @@ local ESP = {}
 
 local function RemoveESP(player)
     local data = ESP[player]
+
     if not data then
         return
     end
@@ -287,6 +288,7 @@ local function UpdateESP(player)
     end
 
     local root = GetRoot(player)
+
     if not root then
         RemoveESP(player)
         return
@@ -297,6 +299,7 @@ local function UpdateESP(player)
     end
 
     local data = ESP[player]
+
     if not data then
         return
     end
@@ -373,11 +376,12 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 --==================================================
--- AIM TEST
+-- AIM
 --==================================================
 
 local function GetAimPart(player)
     local character = GetCharacter(player)
+
     if not character then
         return nil
     end
@@ -420,18 +424,23 @@ local function GetClosestTarget()
     local bestDistance = Config.AimFOV
 
     local viewport = Camera.ViewportSize
+
     local center = Vector2.new(
         viewport.X / 2,
         viewport.Y / 2
     )
 
     local myRoot = GetRoot(LocalPlayer)
+
     if not myRoot then
         return nil
     end
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and Alive(player) and IsEnemy(player) then
+        if player ~= LocalPlayer
+            and Alive(player)
+            and IsEnemy(player) then
+
             local part = GetAimPart(player)
             local root = GetRoot(player)
 
@@ -445,7 +454,10 @@ local function GetClosestTarget()
 
                     if onScreen then
                         local screenDistance =
-                            (Vector2.new(screen.X, screen.Y) - center).Magnitude
+                            (
+                                Vector2.new(screen.X, screen.Y)
+                                - center
+                            ).Magnitude
 
                         if screenDistance <= bestDistance
                             and Visible(part, player.Character) then
@@ -520,7 +532,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 --==================================================
--- PLAYER TEST
+-- PLAYER
 --==================================================
 
 local FlyConnection = nil
@@ -538,6 +550,7 @@ local function StopFly()
     end
 
     local humanoid = GetHumanoid(LocalPlayer)
+
     if humanoid then
         humanoid.PlatformStand = false
     end
@@ -545,6 +558,7 @@ end
 
 local function ApplyPlayerSettings()
     local humanoid = GetHumanoid(LocalPlayer)
+
     if not humanoid then
         return
     end
@@ -571,11 +585,13 @@ local function StartFly()
 
     FlyVelocity = Instance.new("BodyVelocity")
     FlyVelocity.Name = "GuiloHUB_Fly"
+
     FlyVelocity.MaxForce = Vector3.new(
         math.huge,
         math.huge,
         math.huge
     )
+
     FlyVelocity.Velocity = Vector3.zero
     FlyVelocity.Parent = root
 
@@ -617,12 +633,15 @@ UserInputService.JumpRequest:Connect(function()
     local humanoid = GetHumanoid(LocalPlayer)
 
     if humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        humanoid:ChangeState(
+            Enum.HumanoidStateType.Jumping
+        )
     end
 end)
 
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
+
     ApplyPlayerSettings()
 
     if Config.FlyEnabled then
@@ -638,6 +657,7 @@ RunService.RenderStepped:Connect(function()
     Camera = Workspace.CurrentCamera or Camera
 
     -- FOV
+
     local viewport = Camera.ViewportSize
 
     FOVCircle.Position = UDim2.fromOffset(
@@ -659,13 +679,15 @@ RunService.RenderStepped:Connect(function()
     FOVStroke.Transparency = Config.FOVTransparency
 
     -- ESP
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             UpdateESP(player)
         end
     end
 
-    -- Target
+    -- TARGET
+
     if ShouldAim() then
         CurrentTarget = GetClosestTarget()
     else
@@ -701,7 +723,8 @@ RunService.RenderStepped:Connect(function()
         TargetLabel.Visible = false
     end
 
-    -- Aim
+    -- AIM
+
     if ShouldAim() and CurrentTarget then
         local part = GetAimPart(CurrentTarget)
 
@@ -713,7 +736,11 @@ RunService.RenderStepped:Connect(function()
 
             Camera.CFrame = Camera.CFrame:Lerp(
                 desired,
-                math.clamp(Config.AimSmoothness, 0.01, 1)
+                math.clamp(
+                    Config.AimSmoothness,
+                    0.01,
+                    1
+                )
             )
         end
     end
@@ -734,6 +761,7 @@ ESPTab:Section({
 ESPTab:Toggle({
     Title = "Enable ESP",
     Value = Config.ESPEnabled,
+
     Callback = function(value)
         Config.ESPEnabled = value
 
@@ -754,6 +782,7 @@ ESPTab:Toggle({
 ESPTab:Toggle({
     Title = "Team Check",
     Value = Config.ESPTeamCheck,
+
     Callback = function(value)
         Config.ESPTeamCheck = value
     end,
@@ -762,6 +791,7 @@ ESPTab:Toggle({
 ESPTab:Toggle({
     Title = "Names",
     Value = Config.ESPNames,
+
     Callback = function(value)
         Config.ESPNames = value
     end,
@@ -770,6 +800,7 @@ ESPTab:Toggle({
 ESPTab:Toggle({
     Title = "Distance",
     Value = Config.ESPDistance,
+
     Callback = function(value)
         Config.ESPDistance = value
     end,
@@ -786,6 +817,7 @@ AimTab:Section({
 AimTab:Toggle({
     Title = "Enable Aimbot",
     Value = Config.AimbotEnabled,
+
     Callback = function(value)
         Config.AimbotEnabled = value
     end,
@@ -794,6 +826,7 @@ AimTab:Toggle({
 AimTab:Toggle({
     Title = "Wall Check",
     Value = Config.WallCheck,
+
     Callback = function(value)
         Config.WallCheck = value
     end,
@@ -801,13 +834,16 @@ AimTab:Toggle({
 
 AimTab:Dropdown({
     Title = "Aim Part",
+
     Values = {
         "Head",
         "UpperTorso",
         "LowerTorso",
         "HumanoidRootPart",
     },
+
     Value = Config.AimPart,
+
     Callback = function(value)
         Config.AimPart = value
     end,
@@ -820,6 +856,7 @@ AimTab:Section({
 AimTab:Toggle({
     Title = "Enable Activation",
     Value = Config.ActivationEnabled,
+
     Callback = function(value)
         Config.ActivationEnabled = value
         HoldingAim = false
@@ -829,12 +866,15 @@ AimTab:Toggle({
 
 AimTab:Dropdown({
     Title = "Input",
+
     Values = {
         "Keyboard",
         "M1",
         "M2",
     },
+
     Value = Config.ActivationInput,
+
     Callback = function(value)
         Config.ActivationInput = value
         HoldingAim = false
@@ -844,6 +884,7 @@ AimTab:Dropdown({
 
 AimTab:Dropdown({
     Title = "Keyboard Key",
+
     Values = {
         "Q",
         "E",
@@ -854,7 +895,9 @@ AimTab:Dropdown({
         "LeftControl",
         "Space",
     },
+
     Value = "Q",
+
     Callback = function(value)
         local keys = {
             Q = Enum.KeyCode.Q,
@@ -867,17 +910,21 @@ AimTab:Dropdown({
             Space = Enum.KeyCode.Space,
         }
 
-        Config.ActivationKey = keys[value] or Enum.KeyCode.Q
+        Config.ActivationKey =
+            keys[value] or Enum.KeyCode.Q
     end,
 })
 
 AimTab:Dropdown({
     Title = "Mode",
+
     Values = {
         "Hold",
         "Toggle",
     },
+
     Value = Config.ActivationMode,
+
     Callback = function(value)
         Config.ActivationMode = value
         HoldingAim = false
@@ -887,12 +934,15 @@ AimTab:Dropdown({
 
 AimTab:Slider({
     Title = "Smoothness",
+
     Value = {
         Min = 0.10,
         Max = 1,
         Default = Config.AimSmoothness,
     },
+
     Step = 0.01,
+
     Callback = function(value)
         Config.AimSmoothness = value
     end,
@@ -900,12 +950,15 @@ AimTab:Slider({
 
 AimTab:Slider({
     Title = "FOV",
+
     Value = {
         Min = 50,
         Max = 500,
         Default = Config.AimFOV,
     },
+
     Step = 5,
+
     Callback = function(value)
         Config.AimFOV = value
     end,
@@ -913,12 +966,15 @@ AimTab:Slider({
 
 AimTab:Slider({
     Title = "Max Distance",
+
     Value = {
         Min = 100,
         Max = 3000,
         Default = Config.MaxDistance,
     },
+
     Step = 50,
+
     Callback = function(value)
         Config.MaxDistance = value
     end,
@@ -935,6 +991,7 @@ VisualTab:Section({
 VisualTab:Toggle({
     Title = "Show FOV",
     Value = Config.FOVVisible,
+
     Callback = function(value)
         Config.FOVVisible = value
     end,
@@ -942,12 +999,15 @@ VisualTab:Toggle({
 
 VisualTab:Slider({
     Title = "FOV Thickness",
+
     Value = {
         Min = 1,
         Max = 6,
         Default = Config.FOVThickness,
     },
+
     Step = 1,
+
     Callback = function(value)
         Config.FOVThickness = value
     end,
@@ -955,12 +1015,15 @@ VisualTab:Slider({
 
 VisualTab:Slider({
     Title = "FOV Transparency",
+
     Value = {
         Min = 0,
         Max = 1,
         Default = Config.FOVTransparency,
     },
+
     Step = 0.05,
+
     Callback = function(value)
         Config.FOVTransparency = value
     end,
@@ -969,6 +1032,7 @@ VisualTab:Slider({
 VisualTab:Colorpicker({
     Title = "FOV Color",
     Default = Config.FOVColor,
+
     Callback = function(value)
         Config.FOVColor = value
     end,
@@ -981,6 +1045,7 @@ VisualTab:Section({
 VisualTab:Toggle({
     Title = "Show Target",
     Value = Config.TargetIndicator,
+
     Callback = function(value)
         Config.TargetIndicator = value
     end,
@@ -989,6 +1054,7 @@ VisualTab:Toggle({
 VisualTab:Colorpicker({
     Title = "Target Color",
     Default = Config.TargetColor,
+
     Callback = function(value)
         Config.TargetColor = value
     end,
@@ -1001,6 +1067,7 @@ VisualTab:Section({
 VisualTab:Colorpicker({
     Title = "Enemy Color",
     Default = Config.EnemyColor,
+
     Callback = function(value)
         Config.EnemyColor = value
     end,
@@ -1009,6 +1076,7 @@ VisualTab:Colorpicker({
 VisualTab:Colorpicker({
     Title = "Team Color",
     Default = Config.TeamColor,
+
     Callback = function(value)
         Config.TeamColor = value
     end,
@@ -1025,6 +1093,7 @@ PlayerTab:Section({
 PlayerTab:Toggle({
     Title = "Enable Speed",
     Value = Config.SpeedEnabled,
+
     Callback = function(value)
         Config.SpeedEnabled = value
         ApplyPlayerSettings()
@@ -1033,12 +1102,15 @@ PlayerTab:Toggle({
 
 PlayerTab:Slider({
     Title = "Walk Speed",
+
     Value = {
         Min = 16,
         Max = 150,
         Default = Config.WalkSpeed,
     },
+
     Step = 1,
+
     Callback = function(value)
         Config.WalkSpeed = value
         ApplyPlayerSettings()
@@ -1048,6 +1120,7 @@ PlayerTab:Slider({
 PlayerTab:Toggle({
     Title = "Enable Jump Power",
     Value = Config.JumpEnabled,
+
     Callback = function(value)
         Config.JumpEnabled = value
         ApplyPlayerSettings()
@@ -1056,12 +1129,15 @@ PlayerTab:Toggle({
 
 PlayerTab:Slider({
     Title = "Jump Power",
+
     Value = {
         Min = 50,
         Max = 200,
         Default = Config.JumpPower,
     },
+
     Step = 5,
+
     Callback = function(value)
         Config.JumpPower = value
         ApplyPlayerSettings()
@@ -1071,6 +1147,7 @@ PlayerTab:Slider({
 PlayerTab:Toggle({
     Title = "Infinite Jump",
     Value = Config.InfiniteJump,
+
     Callback = function(value)
         Config.InfiniteJump = value
     end,
@@ -1083,6 +1160,7 @@ PlayerTab:Section({
 PlayerTab:Toggle({
     Title = "Enable Fly",
     Value = Config.FlyEnabled,
+
     Callback = function(value)
         Config.FlyEnabled = value
 
@@ -1096,12 +1174,15 @@ PlayerTab:Toggle({
 
 PlayerTab:Slider({
     Title = "Fly Speed",
+
     Value = {
         Min = 10,
         Max = 200,
         Default = Config.FlySpeed,
     },
+
     Step = 5,
+
     Callback = function(value)
         Config.FlySpeed = value
     end,
@@ -1109,6 +1190,7 @@ PlayerTab:Slider({
 
 PlayerTab:Button({
     Title = "Reset Player",
+
     Callback = function()
         Config.SpeedEnabled = false
         Config.JumpEnabled = false
@@ -1145,6 +1227,7 @@ ConfigTab:Paragraph({
 
 ConfigTab:Button({
     Title = "Save Current Config",
+
     Callback = function()
         if Window.ConfigManager then
             local ok, err = pcall(function()
@@ -1153,7 +1236,9 @@ ConfigTab:Button({
 
             WindUI:Notify({
                 Title = ok and "Config Saved" or "Config Error",
-                Content = ok and "Configuration saved." or tostring(err),
+                Content = ok
+                    and "Configuration saved."
+                    or tostring(err),
                 Duration = 3,
             })
         else
@@ -1168,6 +1253,7 @@ ConfigTab:Button({
 
 ConfigTab:Button({
     Title = "Load Config",
+
     Callback = function()
         if Window.ConfigManager then
             local ok, err = pcall(function()
@@ -1176,7 +1262,9 @@ ConfigTab:Button({
 
             WindUI:Notify({
                 Title = ok and "Config Loaded" or "Config Error",
-                Content = ok and "Configuration loaded." or tostring(err),
+                Content = ok
+                    and "Configuration loaded."
+                    or tostring(err),
                 Duration = 3,
             })
         else
@@ -1205,6 +1293,7 @@ SettingsTab:Paragraph({
 
 SettingsTab:Button({
     Title = "Disable ESP",
+
     Callback = function()
         Config.ESPEnabled = false
 
@@ -1216,6 +1305,7 @@ SettingsTab:Button({
 
 SettingsTab:Button({
     Title = "Enable ESP",
+
     Callback = function()
         Config.ESPEnabled = true
 
