@@ -322,8 +322,7 @@ local function UpdateESP(player)
         return
     end
 
-    local enemy = IsEnemy(player)
-    local color = enemy and Config.EnemyColor or Config.TeamColor
+  local color = player.Team and player.Team.TeamColor.Color or player.TeamColor.Color
 
     data.Highlight.FillColor = color
     data.Highlight.OutlineColor = color
