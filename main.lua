@@ -1,4 +1,4 @@
-lua = r'''--[[
+--[[
     GuiloHUB
     Author: Guilh3rm3Scr1pter
 
