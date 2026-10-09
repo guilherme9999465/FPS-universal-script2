@@ -322,7 +322,7 @@ local function UpdateESP(player)
         return
     end
 
-  local color = player.Team and player.Team.TeamColor.Color or player.TeamColor.Color
+    local color = player.Team and player.Team.TeamColor.Color or player.TeamColor.Color
 
     data.Highlight.FillColor = color
     data.Highlight.OutlineColor = color
