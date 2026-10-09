@@ -1,10 +1,6 @@
 --[[
     GuiloHUB
     Author: Guilh3rm3Scr1pter
-
-    TEST BUILD
-    WindUI + ESP/target testing + visual settings + player testing.
-    Intended for experiences you control / authorized testing.
 ]]
 
 --==================================================
@@ -1244,10 +1240,3 @@ WindUI:Notify({
 
 print("[GuiloHUB] Loaded successfully.")
 print("[GuiloHUB] Author: Guilh3rm3Scr1pter")
-'''
-path = "/mnt/data/GuiloHUB.lua"
-with open(path, "w", encoding="utf-8", newline="\n") as f:
-    f.write(lua)
-print(path)
-print("Lua characters:", len(lua))
-print("Lines:", len(lua.splitlines()))
