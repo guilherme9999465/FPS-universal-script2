@@ -69,8 +69,6 @@ local Config = {
 
     InfiniteJump = false,
 
-    NoclipEnabled = false,
-
     FlyEnabled = false,
     FlySpeed = 60,
 }
@@ -324,9 +322,7 @@ local function UpdateESP(player)
         return
     end
 
-    local color = player.Team
-        and player.Team.TeamColor.Color
-        or player.TeamColor.Color
+  local color = player.Team and player.Team.TeamColor.Color or player.TeamColor.Color
 
     data.Highlight.FillColor = color
     data.Highlight.OutlineColor = color
@@ -559,62 +555,6 @@ end)
 local FlyConnection = nil
 local FlyVelocity = nil
 
-local NoclipConnection = nil
-local NoclipStates = {}
-
---==================================================
--- NOCLIP
---==================================================
-
-local function RestoreNoclip()
-    for part, originalCanCollide in pairs(NoclipStates) do
-        if part and part.Parent then
-            part.CanCollide = originalCanCollide
-        end
-    end
-
-    table.clear(NoclipStates)
-end
-
-local function StopNoclip()
-    if NoclipConnection then
-        NoclipConnection:Disconnect()
-        NoclipConnection = nil
-    end
-
-    RestoreNoclip()
-end
-
-local function StartNoclip()
-    StopNoclip()
-
-    NoclipConnection = RunService.Stepped:Connect(function()
-        if not Config.NoclipEnabled then
-            return
-        end
-
-        local character = GetCharacter(LocalPlayer)
-
-        if not character then
-            return
-        end
-
-        for _, object in ipairs(character:GetDescendants()) do
-            if object:IsA("BasePart") then
-                if NoclipStates[object] == nil then
-                    NoclipStates[object] = object.CanCollide
-                end
-
-                object.CanCollide = false
-            end
-        end
-    end)
-end
-
---==================================================
--- FLY
---==================================================
-
 local function StopFly()
     if FlyConnection then
         FlyConnection:Disconnect()
@@ -656,6 +596,9 @@ local function ApplyPlayerSettings()
         humanoid.UseJumpPower = true
         humanoid.JumpPower = Config.JumpPower
     else
+        -- IMPORTANT:
+        -- Não força JumpPower = 50.
+        -- Restaura exatamente o valor original do jogo.
         if OriginalUseJumpPower ~= nil then
             humanoid.UseJumpPower = OriginalUseJumpPower
         end
@@ -748,29 +691,22 @@ end)
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
 
-    -- Para conexões antigas antes de trabalhar
-    -- com o novo personagem.
-    StopNoclip()
-    StopFly()
-
     local humanoid = GetHumanoid(LocalPlayer)
 
     if humanoid then
+        -- Captura os valores do jogo ANTES
+        -- de aplicar qualquer configuração.
         SaveOriginalMovementValues(humanoid)
     end
 
     ApplyPlayerSettings()
-
-    if Config.NoclipEnabled then
-        StartNoclip()
-    end
 
     if Config.FlyEnabled then
         StartFly()
     end
 end)
 
--- Captura os valores iniciais.
+-- Captura o valor inicial do personagem.
 do
     local humanoid = GetHumanoid(LocalPlayer)
 
@@ -1214,7 +1150,7 @@ VisualTab:Colorpicker({
 --==================================================
 
 PlayerTab:Section({
-    Title = "Movement",
+    Title = "Player",
 })
 
 PlayerTab:Toggle({
@@ -1283,33 +1219,6 @@ PlayerTab:Toggle({
     end,
 })
 
---==================================================
--- NOCLIP UI
---==================================================
-
-PlayerTab:Section({
-    Title = "Noclip",
-})
-
-PlayerTab:Toggle({
-    Title = "Enable Noclip",
-    Value = Config.NoclipEnabled,
-
-    Callback = function(value)
-        Config.NoclipEnabled = value
-
-        if value then
-            StartNoclip()
-        else
-            StopNoclip()
-        end
-    end,
-})
-
---==================================================
--- FLY UI
---==================================================
-
 PlayerTab:Section({
     Title = "Fly",
 })
@@ -1345,10 +1254,6 @@ PlayerTab:Slider({
     end,
 })
 
---==================================================
--- RESET PLAYER
---==================================================
-
 PlayerTab:Button({
     Title = "Reset Player",
 
@@ -1356,10 +1261,8 @@ PlayerTab:Button({
         Config.SpeedEnabled = false
         Config.JumpEnabled = false
         Config.InfiniteJump = false
-        Config.NoclipEnabled = false
         Config.FlyEnabled = false
 
-        StopNoclip()
         StopFly()
 
         local humanoid = GetHumanoid(LocalPlayer)
