@@ -875,7 +875,7 @@ ESPTab:Toggle({
 --==================================================
 
 AimTab:Section({
-    Title = "Aim Test",
+    Title = "Aimbot",
 })
 
 AimTab:Toggle({
@@ -1151,7 +1151,7 @@ VisualTab:Colorpicker({
 --==================================================
 
 PlayerTab:Section({
-    Title = "Movement Test",
+    Title = "Player",
 })
 
 PlayerTab:Toggle({
@@ -1221,7 +1221,7 @@ PlayerTab:Toggle({
 })
 
 PlayerTab:Section({
-    Title = "Fly Test",
+    Title = "Fly",
 })
 
 PlayerTab:Toggle({
