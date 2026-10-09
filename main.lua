@@ -78,6 +78,24 @@ local ToggleAim = false
 local CurrentTarget = nil
 
 --==================================================
+-- ORIGINAL PLAYER VALUES
+--==================================================
+
+local OriginalWalkSpeed = nil
+local OriginalJumpPower = nil
+local OriginalUseJumpPower = nil
+
+local function SaveOriginalMovementValues(humanoid)
+    if not humanoid then
+        return
+    end
+
+    OriginalWalkSpeed = humanoid.WalkSpeed
+    OriginalJumpPower = humanoid.JumpPower
+    OriginalUseJumpPower = humanoid.UseJumpPower
+end
+
+--==================================================
 -- WINDOW
 --==================================================
 
@@ -556,6 +574,10 @@ local function StopFly()
     end
 end
 
+--==================================================
+-- MOVEMENT SETTINGS
+--==================================================
+
 local function ApplyPlayerSettings()
     local humanoid = GetHumanoid(LocalPlayer)
 
@@ -563,14 +585,34 @@ local function ApplyPlayerSettings()
         return
     end
 
-    humanoid.WalkSpeed =
-        Config.SpeedEnabled and Config.WalkSpeed or 16
+    -- SPEED
+    if Config.SpeedEnabled then
+        humanoid.WalkSpeed = Config.WalkSpeed
+    elseif OriginalWalkSpeed ~= nil then
+        humanoid.WalkSpeed = OriginalWalkSpeed
+    end
 
-    humanoid.UseJumpPower = true
+    -- JUMP
+    if Config.JumpEnabled then
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = Config.JumpPower
+    else
+        -- IMPORTANT:
+        -- Não força JumpPower = 50.
+        -- Restaura exatamente o valor original do jogo.
+        if OriginalUseJumpPower ~= nil then
+            humanoid.UseJumpPower = OriginalUseJumpPower
+        end
 
-    humanoid.JumpPower =
-        Config.JumpEnabled and Config.JumpPower or 50
+        if OriginalJumpPower ~= nil then
+            humanoid.JumpPower = OriginalJumpPower
+        end
+    end
 end
+
+--==================================================
+-- FLY
+--==================================================
 
 local function StartFly()
     StopFly()
@@ -625,6 +667,10 @@ local function StartFly()
     end)
 end
 
+--==================================================
+-- INFINITE JUMP
+--==================================================
+
 UserInputService.JumpRequest:Connect(function()
     if not Config.InfiniteJump then
         return
@@ -639,8 +685,20 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
+--==================================================
+-- CHARACTER
+--==================================================
+
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
+
+    local humanoid = GetHumanoid(LocalPlayer)
+
+    if humanoid then
+        -- Captura os valores do jogo ANTES
+        -- de aplicar qualquer configuração.
+        SaveOriginalMovementValues(humanoid)
+    end
 
     ApplyPlayerSettings()
 
@@ -648,6 +706,15 @@ LocalPlayer.CharacterAdded:Connect(function()
         StartFly()
     end
 end)
+
+-- Captura o valor inicial do personagem.
+do
+    local humanoid = GetHumanoid(LocalPlayer)
+
+    if humanoid then
+        SaveOriginalMovementValues(humanoid)
+    end
+end
 
 --==================================================
 -- RENDER
@@ -657,7 +724,6 @@ RunService.RenderStepped:Connect(function()
     Camera = Workspace.CurrentCamera or Camera
 
     -- FOV
-
     local viewport = Camera.ViewportSize
 
     FOVCircle.Position = UDim2.fromOffset(
@@ -679,7 +745,6 @@ RunService.RenderStepped:Connect(function()
     FOVStroke.Transparency = Config.FOVTransparency
 
     -- ESP
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             UpdateESP(player)
@@ -687,7 +752,6 @@ RunService.RenderStepped:Connect(function()
     end
 
     -- TARGET
-
     if ShouldAim() then
         CurrentTarget = GetClosestTarget()
     else
@@ -724,7 +788,6 @@ RunService.RenderStepped:Connect(function()
     end
 
     -- AIM
-
     if ShouldAim() and CurrentTarget then
         local part = GetAimPart(CurrentTarget)
 
@@ -745,6 +808,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- MOVEMENT
     if not Config.FlyEnabled then
         ApplyPlayerSettings()
     end
@@ -1140,7 +1204,10 @@ PlayerTab:Slider({
 
     Callback = function(value)
         Config.JumpPower = value
-        ApplyPlayerSettings()
+
+        if Config.JumpEnabled then
+            ApplyPlayerSettings()
+        end
     end,
 })
 
@@ -1202,9 +1269,18 @@ PlayerTab:Button({
         local humanoid = GetHumanoid(LocalPlayer)
 
         if humanoid then
-            humanoid.WalkSpeed = 16
-            humanoid.UseJumpPower = true
-            humanoid.JumpPower = 50
+            if OriginalWalkSpeed ~= nil then
+                humanoid.WalkSpeed = OriginalWalkSpeed
+            end
+
+            if OriginalUseJumpPower ~= nil then
+                humanoid.UseJumpPower = OriginalUseJumpPower
+            end
+
+            if OriginalJumpPower ~= nil then
+                humanoid.JumpPower = OriginalJumpPower
+            end
+
             humanoid.PlatformStand = false
         end
 
