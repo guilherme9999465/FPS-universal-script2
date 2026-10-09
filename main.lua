@@ -588,7 +588,7 @@ end
 local function StartNoclip()
     StopNoclip()
 
-    NoclipConnection = RunService.Stepped:Connect(function()
+    NoclipConnection = RunService.PreSimulation:Connect(function()
         if not Config.NoclipEnabled then
             return
         end
