@@ -38,6 +38,12 @@ local Config = {
     ESPDistance = true,
     ESPTeamCheck = true,
 
+    -- TRACERS
+    ESPTracers = true,
+    TracerThickness = 1.5,
+    TracerTransparency = 0.75,
+    TracerOrigin = "Bottom",
+
     AimbotEnabled = false,
     AimTeamCheck = true,
     AimPart = "Head",
@@ -217,7 +223,10 @@ local function Alive(player)
     return humanoid and humanoid.Health > 0
 end
 
--- ESP TEAM CHECK
+--==================================================
+-- TEAM CHECK
+--==================================================
+
 local function IsEnemy(player)
     if not Config.ESPTeamCheck then
         return true
@@ -230,7 +239,6 @@ local function IsEnemy(player)
     return LocalPlayer.Team ~= player.Team
 end
 
--- AIMBOT TEAM CHECK
 local function IsAimTarget(player)
     if not Config.AimTeamCheck then
         return true
@@ -249,22 +257,155 @@ end
 
 local ESP = {}
 
-local function RemoveESP(player)
-    local data = ESP[player]
+--==================================================
+-- TRACERS
+--==================================================
 
-    if not data then
+local Tracers = {}
+
+local DrawingAvailable =
+    typeof(Drawing) == "table"
+    and typeof(Drawing.new) == "function"
+
+local function GetTracerOrigin(viewport)
+    if Config.TracerOrigin == "Top" then
+        return Vector2.new(
+            viewport.X / 2,
+            0
+        )
+    end
+
+    if Config.TracerOrigin == "Middle" then
+        return Vector2.new(
+            viewport.X / 2,
+            viewport.Y / 2
+        )
+    end
+
+    return Vector2.new(
+        viewport.X / 2,
+        viewport.Y
+    )
+end
+
+local function RemoveTracer(player)
+    local tracer = Tracers[player]
+
+    if not tracer then
         return
     end
 
-    if data.Highlight then
-        data.Highlight:Destroy()
+    pcall(function()
+        tracer:Remove()
+    end)
+
+    pcall(function()
+        tracer:Destroy()
+    end)
+
+    Tracers[player] = nil
+end
+
+local function CreateTracer(player)
+    if not DrawingAvailable then
+        return
     end
 
-    if data.Billboard then
-        data.Billboard:Destroy()
+    if player == LocalPlayer then
+        return
+    end
+
+    RemoveTracer(player)
+
+    local tracer = Drawing.new("Line")
+
+    tracer.Visible = false
+    tracer.Thickness = Config.TracerThickness
+    tracer.Transparency = Config.TracerTransparency
+    tracer.Color = Color3.fromRGB(255, 255, 255)
+
+    Tracers[player] = tracer
+end
+
+local function UpdateTracer(player)
+    if not DrawingAvailable then
+        return
+    end
+
+    if player == LocalPlayer then
+        return
+    end
+
+    if not Config.ESPEnabled or not Config.ESPTracers then
+        RemoveTracer(player)
+        return
+    end
+
+    local root = GetRoot(player)
+
+    if not root or not Alive(player) then
+        if Tracers[player] then
+            Tracers[player].Visible = false
+        end
+
+        return
+    end
+
+    if not Tracers[player] then
+        CreateTracer(player)
+    end
+
+    local tracer = Tracers[player]
+
+    if not tracer then
+        return
+    end
+
+    local viewport = Camera.ViewportSize
+
+    local screenPosition, onScreen =
+        Camera:WorldToViewportPoint(root.Position)
+
+    if not onScreen or screenPosition.Z <= 0 then
+        tracer.Visible = false
+        return
+    end
+
+    local origin = GetTracerOrigin(viewport)
+
+    tracer.From = origin
+    tracer.To = Vector2.new(
+        screenPosition.X,
+        screenPosition.Y
+    )
+
+    tracer.Thickness = Config.TracerThickness
+    tracer.Transparency = Config.TracerTransparency
+
+    local color = player.Team
+        and player.Team.TeamColor.Color
+        or player.TeamColor.Color
+
+    tracer.Color = color
+    tracer.Visible = true
+end
+
+local function RemoveESP(player)
+    local data = ESP[player]
+
+    if data then
+        if data.Highlight then
+            data.Highlight:Destroy()
+        end
+
+        if data.Billboard then
+            data.Billboard:Destroy()
+        end
     end
 
     ESP[player] = nil
+
+    RemoveTracer(player)
 end
 
 local function CreateESP(player)
@@ -308,6 +449,10 @@ local function CreateESP(player)
         Billboard = billboard,
         Label = label,
     }
+
+    if Config.ESPTracers then
+        CreateTracer(player)
+    end
 end
 
 local function UpdateESP(player)
@@ -601,14 +746,12 @@ local function ApplyPlayerSettings()
         return
     end
 
-    -- SPEED
     if Config.SpeedEnabled then
         humanoid.WalkSpeed = Config.WalkSpeed
     elseif OriginalWalkSpeed ~= nil then
         humanoid.WalkSpeed = OriginalWalkSpeed
     end
 
-    -- JUMP
     if Config.JumpEnabled then
         humanoid.UseJumpPower = true
         humanoid.JumpPower = Config.JumpPower
@@ -758,6 +901,7 @@ RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             UpdateESP(player)
+            UpdateTracer(player)
         end
     end
 
@@ -881,6 +1025,85 @@ ESPTab:Toggle({
 })
 
 --==================================================
+-- TRACER UI
+--==================================================
+
+ESPTab:Section({
+    Title = "Tracers",
+})
+
+ESPTab:Toggle({
+    Title = "Enable Tracers",
+    Value = Config.ESPTracers,
+
+    Callback = function(value)
+        Config.ESPTracers = value
+
+        if not value then
+            for player in pairs(Tracers) do
+                RemoveTracer(player)
+            end
+        else
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer
+                    and Config.ESPEnabled then
+
+                    CreateTracer(player)
+                end
+            end
+        end
+    end,
+})
+
+ESPTab:Dropdown({
+    Title = "Tracer Origin",
+
+    Values = {
+        "Top",
+        "Middle",
+        "Bottom",
+    },
+
+    Value = Config.TracerOrigin,
+
+    Callback = function(value)
+        Config.TracerOrigin = value
+    end,
+})
+
+ESPTab:Slider({
+    Title = "Tracer Thickness",
+
+    Value = {
+        Min = 1,
+        Max = 5,
+        Default = Config.TracerThickness,
+    },
+
+    Step = 0.5,
+
+    Callback = function(value)
+        Config.TracerThickness = value
+    end,
+})
+
+ESPTab:Slider({
+    Title = "Tracer Transparency",
+
+    Value = {
+        Min = 0,
+        Max = 1,
+        Default = Config.TracerTransparency,
+    },
+
+    Step = 0.05,
+
+    Callback = function(value)
+        Config.TracerTransparency = value
+    end,
+})
+
+--==================================================
 -- AIM UI
 --==================================================
 
@@ -904,8 +1127,6 @@ AimTab:Toggle({
 
     Callback = function(value)
         Config.AimTeamCheck = value
-
-        -- Recalcula o alvo imediatamente com a nova regra.
         CurrentTarget = nil
     end,
 })
