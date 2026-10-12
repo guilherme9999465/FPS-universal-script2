@@ -1607,8 +1607,8 @@ SettingsTab:Paragraph({
 })
 
 SettingsTab:Paragraph({
-    Title = "Test Build",
-    Desc = "Movement and targeting features are intended for authorized testing.",
+    Title = "2.0 Version",
+    Desc = "One the best universal scripts.",
 })
 
 SettingsTab:Button({
